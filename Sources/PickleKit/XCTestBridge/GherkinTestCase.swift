@@ -131,18 +131,21 @@ open class GherkinTestCase: XCTestCase {
             let cwd = FileManager.default.currentDirectoryPath
             absolutePath = (cwd as NSString).appendingPathComponent(rawPath)
         }
-        let generator = HTMLReportGenerator()
+        let env = ProcessInfo.processInfo.environment
+        let suite = ReportSuite(specTitle: env["PICKLE_SPEC_TITLE"] ?? "Living Specification")
+        let specPath = ReportSuite.defaultSpecPath(forReport: absolutePath, override: env["PICKLE_SPEC_PATH"])
         do {
-            try generator.write(result: result, to: absolutePath)
-            fputs("PickleKit: HTML report written to \(absolutePath)\n", stderr)
+            try suite.write(result: result, reportPath: absolutePath, specPath: specPath)
+            fputs("PickleKit: report + living spec written to \(absolutePath), \(specPath)\n", stderr)
         } catch {
             // Fall back to the sandbox-writable temp directory (common when
             // running UI tests via xcodebuild, where the runner is sandboxed).
-            let fallbackPath = (NSTemporaryDirectory() as NSString)
+            let fallbackReport = (NSTemporaryDirectory() as NSString)
                 .appendingPathComponent((rawPath as NSString).lastPathComponent)
+            let fallbackSpec = ReportSuite.defaultSpecPath(forReport: fallbackReport)
             do {
-                try generator.write(result: result, to: fallbackPath)
-                fputs("PickleKit: HTML report written to \(fallbackPath)\n", stderr)
+                try suite.write(result: result, reportPath: fallbackReport, specPath: fallbackSpec)
+                fputs("PickleKit: report + living spec written to \(fallbackReport), \(fallbackSpec)\n", stderr)
             } catch {
                 fputs("PickleKit: Failed to write report: \(error.localizedDescription)\n", stderr)
             }
@@ -173,6 +176,7 @@ open class GherkinTestCase: XCTestCase {
         _resultCollector.record(
             scenarioResult: skippedResult,
             featureName: feature.name,
+            featureDescription: feature.description,
             featureTags: feature.tags,
             sourceFile: feature.sourceFile
         )
@@ -437,6 +441,7 @@ open class GherkinTestCase: XCTestCase {
                         collector.record(
                             scenarioResult: correctedResult,
                             featureName: feature.name,
+                            featureDescription: feature.description,
                             featureTags: feature.tags,
                             sourceFile: feature.sourceFile
                         )
@@ -444,6 +449,7 @@ open class GherkinTestCase: XCTestCase {
                         collector.record(
                             scenarioResult: result,
                             featureName: feature.name,
+                            featureDescription: feature.description,
                             featureTags: feature.tags,
                             sourceFile: feature.sourceFile
                         )

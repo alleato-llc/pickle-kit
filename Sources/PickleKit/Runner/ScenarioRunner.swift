@@ -56,6 +56,9 @@ public struct ScenarioResult: Sendable {
 
 public struct FeatureResult: Sendable {
     public let featureName: String
+    /// The feature's narrative (`As a / I want / So that`), preserved from
+    /// the source so the living-specification view can render intent.
+    public let description: String
     public let scenarioResults: [ScenarioResult]
     public let tags: [String]
     public let sourceFile: String?
@@ -63,12 +66,14 @@ public struct FeatureResult: Sendable {
 
     public init(
         featureName: String,
+        description: String = "",
         scenarioResults: [ScenarioResult],
         tags: [String] = [],
         sourceFile: String? = nil,
         duration: TimeInterval = 0
     ) {
         self.featureName = featureName
+        self.description = description
         self.scenarioResults = scenarioResults
         self.tags = tags
         self.sourceFile = sourceFile

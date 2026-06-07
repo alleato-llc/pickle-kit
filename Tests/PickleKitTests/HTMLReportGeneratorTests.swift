@@ -379,32 +379,19 @@ import Foundation
         #expect(html.contains("id=\"feature-0\""))
     }
 
-    @Test func outlineSidebarPresentAndCollapsedByDefault() {
+    @Test func hasPersistentOutlineRail() {
         let result = makeSampleResult()
         let html = generator.generate(from: result)
-        #expect(html.contains("<nav class=\"outline\" id=\"outline\">"))
-        #expect(html.contains("class=\"outline-toggle\""))
-        #expect(html.contains("toggleOutline()"))
-        // Collapsed by default: the open class is only added at runtime, so
-        // the rendered nav must NOT carry it.
-        #expect(!html.contains("class=\"outline open\""))
-        // Jump links to features and scenarios, with status dots.
-        #expect(html.contains("class=\"feature-link\" href=\"#feature-0\""))
-        #expect(html.contains("class=\"scenario-link\" href=\"#scenario-0-0\""))
-        #expect(html.contains("<span class=\"dot passed\">"))
-        #expect(html.contains("<span class=\"dot failed\">"))
-    }
-
-    @Test func outlineGroupsAreExpandable() {
-        let result = makeSampleResult()
-        let html = generator.generate(from: result)
-        // Each feature in the outline is an expandable group: a twisty
-        // toggles its scenario list, with expand/collapse-all controls.
-        #expect(html.contains("class=\"outline-feature\""))
-        #expect(html.contains("class=\"outline-twisty\" onclick=\"toggleGroup(this)\""))
-        #expect(html.contains("class=\"outline-scenarios\""))
-        #expect(html.contains("toggleGroup"))
-        #expect(html.contains("outlineExpandAll"))
+        // A persistent sticky rail (the SAME component as the spec) in a
+        // two-column layout — not the old overlay drawer.
+        #expect(html.contains("class=\"rail\""))
+        #expect(html.contains("class=\"page-layout\""))
+        #expect(html.contains("href=\"#feature-0\" data-target=\"feature-0\""))
+        #expect(html.contains("<span class=\"dot failed\">")) // sample feature failed
+        #expect(html.contains("jumpTo"))
+        // The drawer machinery is gone.
+        #expect(!html.contains("outline-toggle"))
+        #expect(!html.contains("toggleOutline"))
     }
 
     @Test func isThemeableMatchingTheSite() {

@@ -10,6 +10,7 @@ public final class ReportResultCollector: Sendable {
     private struct CollectedScenario: Sendable {
         let scenarioResult: ScenarioResult
         let featureName: String
+        let featureDescription: String
         let featureTags: [String]
         let sourceFile: String?
         let order: Int
@@ -31,6 +32,7 @@ public final class ReportResultCollector: Sendable {
     public func record(
         scenarioResult: ScenarioResult,
         featureName: String,
+        featureDescription: String = "",
         featureTags: [String] = [],
         sourceFile: String? = nil
     ) {
@@ -38,6 +40,7 @@ public final class ReportResultCollector: Sendable {
             let entry = CollectedScenario(
                 scenarioResult: scenarioResult,
                 featureName: featureName,
+                featureDescription: featureDescription,
                 featureTags: featureTags,
                 sourceFile: sourceFile,
                 order: state.counter
@@ -56,12 +59,13 @@ public final class ReportResultCollector: Sendable {
 
         // Group by feature, preserving insertion order
         var featureOrder: [String] = []
-        var featureGroups: [String: (tags: [String], sourceFile: String?, scenarios: [ScenarioResult])] = [:]
+        var featureGroups: [String: (description: String, tags: [String], sourceFile: String?, scenarios: [ScenarioResult])] = [:]
 
         for entry in scenarios.sorted(by: { $0.order < $1.order }) {
             if featureGroups[entry.featureName] == nil {
                 featureOrder.append(entry.featureName)
                 featureGroups[entry.featureName] = (
+                    description: entry.featureDescription,
                     tags: entry.featureTags,
                     sourceFile: entry.sourceFile,
                     scenarios: []
@@ -74,6 +78,7 @@ public final class ReportResultCollector: Sendable {
             guard let group = featureGroups[name] else { return nil }
             return FeatureResult(
                 featureName: name,
+                description: group.description,
                 scenarioResults: group.scenarios,
                 tags: group.tags,
                 sourceFile: group.sourceFile

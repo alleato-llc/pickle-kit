@@ -7,8 +7,12 @@ PickleKit generates Cucumber-style HTML reports with per-step results, timing, a
 The report is a single self-contained HTML file (inline CSS + JS, no external assets) with:
 
 - **Collapsible features** — each feature is a `<details>` (open by default); click its header to fold the whole block. Scenarios collapse independently (failed ones open automatically).
-- **Outline sidebar** — the ☰ button (top-left) opens a navigation drawer, collapsed by default. It lists every feature with its scenarios as jump links (status-coloured dots). Each feature group is itself **expandable** (a twisty toggles its scenario list; *expand*/*collapse* controls act on all groups). Clicking a link opens the target's feature, scrolls to it, and closes the drawer.
+- **Outline rail** — a persistent sticky left rail lists every feature with a status dot and scroll-spy (the current feature highlights as you scroll); clicking jumps to it. The same rail component appears on the living-spec page, so the two read as one product.
 - **Status filtering** — the All / Passed / Skipped / Failed buttons, plus Expand All / Collapse All.
+
+### Two views: report and living specification
+
+A `ReportSuite` renders one run as a cohesive pair — the **report** (this audit view) and a **living specification** (`SpecPageGenerator`): the same features as Given/When/Then prose, marked verified, for reading rather than auditing. They share one palette, one summary of counts, one anchor scheme, and the same outline rail, and they cross-link (the report's "Read it as a specification", the spec's "View the full test report"). When `PICKLE_REPORT` is set, both are written — the report to `PICKLE_REPORT_PATH` and the spec beside it (override with `PICKLE_SPEC_PATH`, title with `PICKLE_SPEC_TITLE`). The spec page is itself standalone-valid (a `SpecPageGenerator` with no report link omits the drill-downs).
 
 ## Theming
 
