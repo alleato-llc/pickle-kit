@@ -1,6 +1,13 @@
 import Foundation
 
 /// Generates a self-contained HTML report from test run results.
+///
+/// The report is themeable (light/dark, following the system by default and
+/// remembered in `localStorage`) using the same palette as the Soroban
+/// landing page — Solarized Light / Dracula — so a report can be dropped
+/// straight onto the site. Features and scenarios are independently
+/// collapsible, and a collapsible outline sidebar (collapsed by default)
+/// gives quick navigation across a large run.
 public struct HTMLReportGenerator: Sendable {
 
     public init() {}
@@ -12,8 +19,22 @@ public struct HTMLReportGenerator: Sendable {
         html += "<meta charset=\"UTF-8\">\n"
         html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
         html += "<title>PickleKit Test Report</title>\n"
+        // Set the theme before first paint (no flash), mirroring the site.
+        html += """
+            <script>
+            (function () {
+              var t = localStorage.getItem('pickle-theme');
+              if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+              document.documentElement.setAttribute('data-theme', t);
+            })();
+            </script>
+
+            """
         html += generateCSS()
         html += "</head>\n<body>\n"
+        html += generateOutline(from: result)
+        html += "<div class=\"outline-scrim\" onclick=\"toggleOutline()\"></div>\n"
+        html += "<main class=\"content\">\n"
         html += generateHeader(from: result)
         html += generateSummary(from: result)
         html += "<div class=\"controls\">\n"
@@ -29,6 +50,7 @@ public struct HTMLReportGenerator: Sendable {
             "  <button onclick=\"filterStatus('failed')\" data-filter=\"failed\">Failed</button>\n"
         html += "</div>\n"
         html += generateFeatures(from: result)
+        html += "</main>\n"
         html += generateJS()
         html += "</body>\n</html>"
         return html
@@ -48,56 +70,95 @@ public struct HTMLReportGenerator: Sendable {
     private func generateCSS() -> String {
         return """
             <style>
+            /* Palette lifted from the Soroban site (Solarized Light / Dracula)
+               so reports match the landing page. data-theme is set before
+               paint by the inline script above. */
+            :root, :root[data-theme="light"] {
+              --bg: #fdf6e3; --surface: #eee8d5; --text: #073642;
+              --muted: #657b83; --faint: #93a1a1; --accent: #268bd2;
+              --error: #dc322f; --border: rgba(7,54,66,0.12); --shadow: rgba(7,54,66,0.06);
+              --passed: #2aa198; --failed: #dc322f; --skipped: #93a1a1; --undefined: #b58900;
+            }
+            :root[data-theme="dark"] {
+              --bg: #282a36; --surface: #343746; --text: #f8f8f2;
+              --muted: #bd93f9; --faint: #6272a4; --accent: #ff79c6;
+              --error: #ff5555; --border: rgba(248,248,242,0.1); --shadow: rgba(0,0,0,0.3);
+              --passed: #50fa7b; --failed: #ff5555; --skipped: #6272a4; --undefined: #ffb86c;
+            }
             * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; padding: 20px; }
-            .report-header { background: #2c3e50; color: white; padding: 24px; border-radius: 8px; margin-bottom: 20px; }
-            .report-header h1 { font-size: 24px; margin-bottom: 8px; }
-            .report-header .timestamp { opacity: 0.8; font-size: 14px; }
+            body { font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; transition: background 0.2s ease, color 0.2s ease; -webkit-font-smoothing: antialiased; }
+            .content { max-width: 1000px; margin: 0 auto; }
+            .mono, .step-row, .step-error { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+            .report-header { background: var(--surface); border: 1px solid var(--border); padding: 24px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+            .report-header h1 { font-size: 24px; margin-bottom: 8px; letter-spacing: -0.01em; }
+            .report-header .timestamp { color: var(--faint); font-size: 14px; }
+            .theme-toggle { border: 1px solid var(--border); background: var(--bg); color: var(--muted); border-radius: 8px; width: 2.2rem; height: 2.2rem; font-size: 1.05rem; cursor: pointer; line-height: 1; flex: none; }
+            .theme-toggle:hover { color: var(--text); }
             .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
-            .summary-card { background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
-            .summary-card h3 { font-size: 13px; text-transform: uppercase; color: #666; margin-bottom: 8px; }
+            .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px var(--shadow); }
+            .summary-card h3 { font-size: 13px; text-transform: uppercase; color: var(--faint); margin-bottom: 8px; letter-spacing: 0.04em; }
             .summary-card .count { font-size: 28px; font-weight: bold; }
-            .summary-card .breakdown { font-size: 13px; color: #888; margin-top: 4px; }
-            .progress-bar { height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; margin-top: 8px; display: flex; }
-            .progress-bar .passed { background: #27ae60; }
-            .progress-bar .failed { background: #e74c3c; }
-            .progress-bar .skipped { background: #95a5a6; }
-            .progress-bar .undefined { background: #f39c12; }
+            .summary-card .breakdown { font-size: 13px; color: var(--muted); margin-top: 4px; }
+            .progress-bar { height: 8px; background: color-mix(in srgb, var(--faint) 25%, transparent); border-radius: 4px; overflow: hidden; margin-top: 8px; display: flex; }
+            .progress-bar .passed { background: var(--passed); }
+            .progress-bar .failed { background: var(--failed); }
+            .progress-bar .skipped { background: var(--skipped); }
+            .progress-bar .undefined { background: var(--undefined); }
             .controls { margin-bottom: 20px; display: flex; gap: 8px; flex-wrap: wrap; }
-            .controls button { padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; font-size: 13px; }
-            .controls button:hover { background: #f0f0f0; }
-            .controls button.active { background: #2c3e50; color: white; border-color: #2c3e50; }
-            .feature { background: white; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); overflow: hidden; }
-            .feature-header { padding: 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; }
-            .feature-header h2 { font-size: 18px; }
-            .feature-header .feature-stats { font-size: 13px; color: #888; }
-            .tag { display: inline-block; background: #e8f4fd; color: #2980b9; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-right: 4px; }
-            .scenario { border-bottom: 1px solid #f0f0f0; }
-            .scenario:last-child { border-bottom: none; }
+            .controls button { padding: 8px 16px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; cursor: pointer; font-size: 13px; }
+            .controls button:hover { border-color: var(--faint); }
+            .controls button.active { background: var(--accent); color: var(--bg); border-color: transparent; }
+            .feature { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; box-shadow: 0 1px 3px var(--shadow); overflow: hidden; }
+            .feature > summary { padding: 16px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; list-style: none; }
+            .feature > summary::-webkit-details-marker { display: none; }
+            .feature > summary::before { content: '\\25B6'; font-size: 10px; transition: transform 0.2s; color: var(--faint); align-self: center; }
+            .feature[open] > summary::before { transform: rotate(90deg); }
+            .feature > summary .feature-title { flex: 1; }
+            .feature-header h2 { font-size: 18px; display: inline; }
+            .feature-stats { font-size: 13px; color: var(--faint); }
+            .tag { display: inline-block; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); padding: 2px 8px; border-radius: 999px; font-size: 11px; margin-right: 4px; }
+            .scenario { border-top: 1px solid var(--border); }
             .scenario summary { padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; list-style: none; }
-            .scenario[data-status="failed"] summary { background: #fdf2f2; }
+            .scenario[data-status="failed"] summary { background: color-mix(in srgb, var(--error) 8%, transparent); }
             .scenario summary::-webkit-details-marker { display: none; }
-            .scenario summary::before { content: '\\25B6'; font-size: 10px; transition: transform 0.2s; color: #999; }
+            .scenario summary::before { content: '\\25B6'; font-size: 10px; transition: transform 0.2s; color: var(--faint); }
             .scenario[open] summary::before { transform: rotate(90deg); }
             .scenario-name { font-weight: 500; }
-            .scenario-duration { font-size: 12px; color: #999; margin-left: auto; }
-            .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-            .status-passed { background: #d4efdf; color: #27ae60; }
-            .status-failed { background: #fadbd8; color: #e74c3c; }
-            .status-skipped { background: #eaecee; color: #95a5a6; }
-            .status-undefined { background: #fdebd0; color: #f39c12; }
+            .scenario-duration { font-size: 12px; color: var(--faint); margin-left: auto; }
+            .status-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+            .status-passed { background: color-mix(in srgb, var(--passed) 22%, transparent); color: var(--passed); }
+            .status-failed { background: color-mix(in srgb, var(--failed) 22%, transparent); color: var(--failed); }
+            .status-skipped { background: color-mix(in srgb, var(--skipped) 25%, transparent); color: var(--skipped); }
+            .status-undefined { background: color-mix(in srgb, var(--undefined) 22%, transparent); color: var(--undefined); }
             .steps { padding: 0 16px 12px 16px; }
-            .step-row { display: flex; align-items: baseline; padding: 4px 0; font-size: 13px; font-family: 'SF Mono', Menlo, monospace; }
-            .step-keyword { color: #8e44ad; font-weight: 600; min-width: 60px; }
+            .step-row { display: flex; align-items: baseline; padding: 4px 0; font-size: 13px; }
+            .step-keyword { color: var(--accent); font-weight: 600; min-width: 60px; }
             .step-text { flex: 1; }
-            .step-duration { color: #999; font-size: 11px; min-width: 70px; text-align: right; }
-            .step-row.passed .step-text { color: #333; }
-            .step-row.failed .step-text { color: #e74c3c; }
-            .step-row.skipped .step-text { color: #95a5a6; }
-            .step-row.undefined .step-text { color: #f39c12; }
-            .step-error { background: #fdf2f2; border-left: 3px solid #e74c3c; padding: 8px 12px; margin: 4px 0 4px 60px; font-size: 12px; color: #c0392b; font-family: 'SF Mono', Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
-            .duration { font-size: 14px; color: #888; }
+            .step-duration { color: var(--faint); font-size: 11px; min-width: 70px; text-align: right; }
+            .step-row.passed .step-text { color: var(--text); }
+            .step-row.failed .step-text { color: var(--failed); }
+            .step-row.skipped .step-text { color: var(--skipped); }
+            .step-row.undefined .step-text { color: var(--undefined); }
+            .step-error { background: color-mix(in srgb, var(--error) 8%, transparent); border-left: 3px solid var(--error); padding: 8px 12px; margin: 4px 0 4px 60px; font-size: 12px; color: var(--error); white-space: pre-wrap; word-break: break-word; }
             .hidden { display: none !important; }
+
+            /* ---------- outline sidebar (collapsed by default) ---------- */
+            .outline-toggle { position: fixed; top: 20px; left: 20px; z-index: 30; width: 2.4rem; height: 2.4rem; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; font-size: 1.1rem; cursor: pointer; box-shadow: 0 1px 3px var(--shadow); }
+            .outline-toggle:hover { border-color: var(--faint); }
+            .outline { position: fixed; top: 0; left: 0; bottom: 0; width: 300px; z-index: 40; background: var(--surface); border-right: 1px solid var(--border); box-shadow: 0 0 40px var(--shadow); padding: 1.25rem 0.5rem 1.25rem 1.25rem; overflow-y: auto; transform: translateX(-100%); transition: transform 0.22s ease; }
+            .outline.open { transform: translateX(0); }
+            .outline h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); margin-bottom: 0.75rem; }
+            .outline ul { list-style: none; }
+            .outline .feature-link { display: block; padding: 0.35rem 0; color: var(--text); font-weight: 600; font-size: 0.92rem; text-decoration: none; }
+            .outline .scenario-link { display: flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0 0.2rem 0.9rem; color: var(--muted); font-size: 0.85rem; text-decoration: none; border-left: 2px solid var(--border); margin-left: 2px; }
+            .outline a:hover { color: var(--accent); }
+            .outline .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+            .outline .dot.passed { background: var(--passed); }
+            .outline .dot.failed { background: var(--failed); }
+            .outline .dot.skipped { background: var(--skipped); }
+            .outline-scrim { position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,0.25); opacity: 0; pointer-events: none; transition: opacity 0.22s ease; }
+            .outline-scrim.show { opacity: 1; pointer-events: auto; }
+            :is(.feature, .scenario) { scroll-margin-top: 16px; }
             </style>
 
             """
@@ -110,9 +171,12 @@ public struct HTMLReportGenerator: Sendable {
         let duration = formatDuration(result.duration)
 
         var html = "<div class=\"report-header\">\n"
-        html += "  <h1>PickleKit Test Report</h1>\n"
+        html += "  <div>\n"
+        html += "    <h1>PickleKit Test Report</h1>\n"
         html +=
-            "  <div class=\"timestamp\">\(esc(formatter.string(from: result.startTime))) &mdash; Duration: \(duration)</div>\n"
+            "    <div class=\"timestamp\">\(esc(formatter.string(from: result.startTime))) &mdash; Duration: \(duration)</div>\n"
+        html += "  </div>\n"
+        html += "  <button class=\"theme-toggle\" onclick=\"cycleTheme()\" aria-label=\"Toggle theme\" title=\"Toggle light/dark\">\u{25D0}</button>\n"
         html += "</div>\n"
         return html
     }
@@ -166,9 +230,37 @@ public struct HTMLReportGenerator: Sendable {
         return html
     }
 
+    /// The collapsible outline: each feature, with its scenarios as jump
+    /// links (status dot + name). Collapsed by default — toggled by the
+    /// floating button.
+    private func generateOutline(from result: TestRunResult) -> String {
+        var html = "<button class=\"outline-toggle\" onclick=\"toggleOutline()\" aria-label=\"Toggle outline\" title=\"Outline\">\u{2630}</button>\n"
+        html += "<nav class=\"outline\" id=\"outline\">\n"
+        html += "  <h2>Outline</h2>\n"
+        html += "  <ul>\n"
+        for (i, feature) in result.featureResults.enumerated() {
+            let featureID = "feature-\(i)"
+            html += "    <li>\n"
+            html += "      <a class=\"feature-link\" href=\"#\(featureID)\" onclick=\"jumpTo('\(featureID)'); return false;\">\(esc(feature.featureName))</a>\n"
+            html += "      <ul>\n"
+            for (j, scenario) in feature.scenarioResults.enumerated() {
+                let scenarioID = "scenario-\(i)-\(j)"
+                let statusClass =
+                    scenario.skipped ? "skipped" : (scenario.passed ? "passed" : "failed")
+                html += "        <li><a class=\"scenario-link\" href=\"#\(scenarioID)\" onclick=\"jumpTo('\(scenarioID)'); return false;\">"
+                html += "<span class=\"dot \(statusClass)\"></span>\(esc(scenario.scenarioName))</a></li>\n"
+            }
+            html += "      </ul>\n"
+            html += "    </li>\n"
+        }
+        html += "  </ul>\n"
+        html += "</nav>\n"
+        return html
+    }
+
     private func generateFeatures(from result: TestRunResult) -> String {
         var html = ""
-        for feature in result.featureResults {
+        for (i, feature) in result.featureResults.enumerated() {
             let featureStatus: String
             if feature.failedCount > 0 {
                 featureStatus = "failed"
@@ -177,33 +269,34 @@ public struct HTMLReportGenerator: Sendable {
             } else {
                 featureStatus = "passed"
             }
-            html += "<div class=\"feature\" data-status=\"\(featureStatus)\">\n"
-            html += "  <div class=\"feature-header\">\n"
-            html += "    <div>\n"
+            // The feature is its own collapsible <details> (open by default);
+            // the header is its <summary>. data-status drives status filtering.
+            html += "<details class=\"feature\" id=\"feature-\(i)\" data-status=\"\(featureStatus)\" open>\n"
+            html += "  <summary class=\"feature-header\">\n"
+            html += "    <div class=\"feature-title\">\n"
             html += "      <h2>\(esc(feature.featureName))</h2>\n"
             if !feature.tags.isEmpty {
-                html += "      <div style=\"margin-top: 4px;\">"
+                html += " "
                 for tag in feature.tags {
                     html += "<span class=\"tag\">@\(esc(tag))</span>"
                 }
-                html += "</div>\n"
             }
-            html += "    </div>\n"
-            html += "    <div class=\"feature-stats\">"
+            html += "\n    </div>\n"
+            html += "    <span class=\"feature-stats\">"
             let executedCount = feature.scenarioResults.count - feature.skippedCount
             html += "\(feature.passedCount)/\(executedCount) scenarios passed"
             if feature.skippedCount > 0 {
                 html += ", \(feature.skippedCount) skipped"
             }
             html += " &middot; \(formatDuration(feature.duration))"
-            html += "</div>\n"
-            html += "  </div>\n"
+            html += "</span>\n"
+            html += "  </summary>\n"
 
-            for scenario in feature.scenarioResults {
+            for (j, scenario) in feature.scenarioResults.enumerated() {
                 let statusClass =
                     scenario.skipped ? "skipped" : (scenario.passed ? "passed" : "failed")
                 let openAttr = (!scenario.passed && !scenario.skipped) ? " open" : ""
-                html += "  <details class=\"scenario\" data-status=\"\(statusClass)\"\(openAttr)>\n"
+                html += "  <details class=\"scenario\" id=\"scenario-\(i)-\(j)\" data-status=\"\(statusClass)\"\(openAttr)>\n"
                 html += "    <summary>\n"
                 html += "      <span class=\"scenario-name\">\(esc(scenario.scenarioName))</span>\n"
                 html +=
@@ -238,7 +331,7 @@ public struct HTMLReportGenerator: Sendable {
                 html += "  </details>\n"
             }
 
-            html += "</div>\n"
+            html += "</details>\n"
         }
         return html
     }
@@ -247,6 +340,7 @@ public struct HTMLReportGenerator: Sendable {
         return """
             <script>
             function expandAll() {
+              document.querySelectorAll('details.feature').forEach(d => d.open = true);
               document.querySelectorAll('details.scenario:not(.hidden)').forEach(d => d.open = true);
             }
             function collapseAll() {
@@ -268,7 +362,29 @@ public struct HTMLReportGenerator: Sendable {
                   }
                 });
                 feature.classList.toggle('hidden', !anyVisible);
+                if (anyVisible) feature.open = true;
               });
+            }
+            function toggleOutline() {
+              const open = document.getElementById('outline').classList.toggle('open');
+              document.querySelector('.outline-scrim').classList.toggle('show', open);
+            }
+            function jumpTo(id) {
+              const el = document.getElementById(id);
+              if (!el) return;
+              if (el.tagName === 'DETAILS') el.open = true;
+              // Open the enclosing feature so a scenario target is visible.
+              const feature = el.closest('details.feature');
+              if (feature) feature.open = true;
+              el.classList.remove('hidden');
+              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              toggleOutline();
+            }
+            function cycleTheme() {
+              const root = document.documentElement;
+              const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+              root.setAttribute('data-theme', next);
+              localStorage.setItem('pickle-theme', next);
             }
             </script>
 

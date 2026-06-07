@@ -367,6 +367,68 @@ import Foundation
         #expect(html.contains("1 skipped"))
     }
 
+    // MARK: - Collapsible features, outline sidebar, theming
+
+    @Test func featureIsCollapsibleDetails() {
+        let result = makeSampleResult()
+        let html = generator.generate(from: result)
+        // The feature is its own <details> (open by default) with the header
+        // as its <summary> — independently collapsible from its scenarios.
+        #expect(html.contains("<details class=\"feature\""))
+        #expect(html.contains("<summary class=\"feature-header\">"))
+        #expect(html.contains("id=\"feature-0\""))
+    }
+
+    @Test func outlineSidebarPresentAndCollapsedByDefault() {
+        let result = makeSampleResult()
+        let html = generator.generate(from: result)
+        #expect(html.contains("<nav class=\"outline\" id=\"outline\">"))
+        #expect(html.contains("class=\"outline-toggle\""))
+        #expect(html.contains("toggleOutline()"))
+        // Collapsed by default: the open class is only added at runtime, so
+        // the rendered nav must NOT carry it.
+        #expect(!html.contains("class=\"outline open\""))
+        // Jump links to features and scenarios, with status dots.
+        #expect(html.contains("class=\"feature-link\" href=\"#feature-0\""))
+        #expect(html.contains("class=\"scenario-link\" href=\"#scenario-0-0\""))
+        #expect(html.contains("<span class=\"dot passed\">"))
+        #expect(html.contains("<span class=\"dot failed\">"))
+    }
+
+    @Test func isThemeableMatchingTheSite() {
+        let result = makeSampleResult()
+        let html = generator.generate(from: result)
+        // Light = Solarized, dark = Dracula, switched via data-theme — the
+        // same palette and mechanism as the landing page.
+        #expect(html.contains(":root[data-theme=\"dark\"]"))
+        #expect(html.contains("#fdf6e3")) // Solarized base3 (light bg)
+        #expect(html.contains("#282a36")) // Dracula bg
+        #expect(html.contains("--accent"))
+        // A theme toggle and a pre-paint script that honors the system + a
+        // remembered choice.
+        #expect(html.contains("cycleTheme()"))
+        #expect(html.contains("localStorage.getItem('pickle-theme')"))
+        #expect(html.contains("prefers-color-scheme: dark"))
+    }
+
+    @Test func scenarioAndFeatureAnchorsAreUnique() {
+        // Two features, two scenarios each → distinct, stable anchor ids.
+        let feature1 = FeatureResult(featureName: "F1", scenarioResults: [
+            ScenarioResult(scenarioName: "A", passed: true, stepsExecuted: 1),
+            ScenarioResult(scenarioName: "B", passed: true, stepsExecuted: 1),
+        ])
+        let feature2 = FeatureResult(featureName: "F2", scenarioResults: [
+            ScenarioResult(scenarioName: "C", passed: true, stepsExecuted: 1),
+        ])
+        let result = TestRunResult(featureResults: [feature1, feature2],
+                                   startTime: Date(), endTime: Date())
+        let html = generator.generate(from: result)
+        #expect(html.contains("id=\"feature-0\""))
+        #expect(html.contains("id=\"feature-1\""))
+        #expect(html.contains("id=\"scenario-0-1\""))
+        #expect(html.contains("id=\"scenario-1-0\""))
+    }
+
     // MARK: - Undefined Step Status
 
     @Test func undefinedStepCSSClass() {
