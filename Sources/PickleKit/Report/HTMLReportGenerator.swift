@@ -147,10 +147,18 @@ public struct HTMLReportGenerator: Sendable {
             .outline-toggle:hover { border-color: var(--faint); }
             .outline { position: fixed; top: 0; left: 0; bottom: 0; width: 300px; z-index: 40; background: var(--surface); border-right: 1px solid var(--border); box-shadow: 0 0 40px var(--shadow); padding: 1.25rem 0.5rem 1.25rem 1.25rem; overflow-y: auto; transform: translateX(-100%); transition: transform 0.22s ease; }
             .outline.open { transform: translateX(0); }
-            .outline h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); margin-bottom: 0.75rem; }
+            .outline-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; }
+            .outline-head h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); }
+            .outline-head button { border: none; background: none; color: var(--faint); cursor: pointer; font-size: 0.72rem; padding: 0; }
+            .outline-head button:hover { color: var(--accent); }
             .outline ul { list-style: none; }
-            .outline .feature-link { display: block; padding: 0.35rem 0; color: var(--text); font-weight: 600; font-size: 0.92rem; text-decoration: none; }
-            .outline .scenario-link { display: flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0 0.2rem 0.9rem; color: var(--muted); font-size: 0.85rem; text-decoration: none; border-left: 2px solid var(--border); margin-left: 2px; }
+            .outline-feature-row { display: flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0; }
+            .outline-twisty { border: none; background: none; color: var(--faint); cursor: pointer; font-size: 0.65rem; width: 1rem; flex: none; padding: 0; transition: transform 0.15s ease; }
+            .outline-twisty:hover { color: var(--accent); }
+            .outline-feature.collapsed .outline-twisty { transform: rotate(-90deg); }
+            .outline-feature.collapsed .outline-scenarios { display: none; }
+            .outline .feature-link { color: var(--text); font-weight: 600; font-size: 0.92rem; text-decoration: none; }
+            .outline .scenario-link { display: flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0 0.2rem 1.6rem; color: var(--muted); font-size: 0.85rem; text-decoration: none; border-left: 2px solid var(--border); margin-left: 0.5rem; }
             .outline a:hover { color: var(--accent); }
             .outline .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
             .outline .dot.passed { background: var(--passed); }
@@ -236,13 +244,22 @@ public struct HTMLReportGenerator: Sendable {
     private func generateOutline(from result: TestRunResult) -> String {
         var html = "<button class=\"outline-toggle\" onclick=\"toggleOutline()\" aria-label=\"Toggle outline\" title=\"Outline\">\u{2630}</button>\n"
         html += "<nav class=\"outline\" id=\"outline\">\n"
-        html += "  <h2>Outline</h2>\n"
+        html += "  <div class=\"outline-head\">\n"
+        html += "    <h2>Outline</h2>\n"
+        html += "    <button onclick=\"outlineExpandAll(true)\">expand</button>\n"
+        html += "    <button onclick=\"outlineExpandAll(false)\">collapse</button>\n"
+        html += "  </div>\n"
         html += "  <ul>\n"
         for (i, feature) in result.featureResults.enumerated() {
             let featureID = "feature-\(i)"
-            html += "    <li>\n"
-            html += "      <a class=\"feature-link\" href=\"#\(featureID)\" onclick=\"jumpTo('\(featureID)'); return false;\">\(esc(feature.featureName))</a>\n"
-            html += "      <ul>\n"
+            // Each feature is an expandable group: the twisty toggles its
+            // scenario list (expanded by default); the name jumps to it.
+            html += "    <li class=\"outline-feature\">\n"
+            html += "      <div class=\"outline-feature-row\">\n"
+            html += "        <button class=\"outline-twisty\" onclick=\"toggleGroup(this)\" aria-label=\"Toggle group\">\u{25BE}</button>\n"
+            html += "        <a class=\"feature-link\" href=\"#\(featureID)\" onclick=\"jumpTo('\(featureID)'); return false;\">\(esc(feature.featureName))</a>\n"
+            html += "      </div>\n"
+            html += "      <ul class=\"outline-scenarios\">\n"
             for (j, scenario) in feature.scenarioResults.enumerated() {
                 let scenarioID = "scenario-\(i)-\(j)"
                 let statusClass =
@@ -368,6 +385,12 @@ public struct HTMLReportGenerator: Sendable {
             function toggleOutline() {
               const open = document.getElementById('outline').classList.toggle('open');
               document.querySelector('.outline-scrim').classList.toggle('show', open);
+            }
+            function toggleGroup(btn) {
+              btn.closest('.outline-feature').classList.toggle('collapsed');
+            }
+            function outlineExpandAll(expand) {
+              document.querySelectorAll('.outline-feature').forEach(f => f.classList.toggle('collapsed', !expand));
             }
             function jumpTo(id) {
               const el = document.getElementById(id);

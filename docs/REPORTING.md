@@ -1,6 +1,22 @@
 # HTML Report Configuration
 
-PickleKit generates Cucumber-style HTML reports with per-step results, timing, and status filtering. This document covers configuration options, xcodebuild integration, and programmatic report generation.
+PickleKit generates Cucumber-style HTML reports with per-step results, timing, and status filtering. This document covers configuration options, xcodebuild integration, the report's interactive features, theming, and programmatic report generation.
+
+## Interactive features
+
+The report is a single self-contained HTML file (inline CSS + JS, no external assets) with:
+
+- **Collapsible features** — each feature is a `<details>` (open by default); click its header to fold the whole block. Scenarios collapse independently (failed ones open automatically).
+- **Outline sidebar** — the ☰ button (top-left) opens a navigation drawer, collapsed by default. It lists every feature with its scenarios as jump links (status-coloured dots). Each feature group is itself **expandable** (a twisty toggles its scenario list; *expand*/*collapse* controls act on all groups). Clicking a link opens the target's feature, scrolls to it, and closes the drawer.
+- **Status filtering** — the All / Passed / Skipped / Failed buttons, plus Expand All / Collapse All.
+
+## Theming
+
+The report is themeable and ships **light** and **dark** themes out of the box, using the same palette as the [Soroban](https://github.com/alleato-llc/soroban) landing page — Solarized Light and Dracula — so a generated report can be dropped straight onto a site.
+
+- **How it's switched:** a `data-theme` attribute (`"light"` / `"dark"`) on `<html>` selects a block of CSS custom properties. The **◐** button in the report header toggles it.
+- **First paint:** an inline `<script>` in `<head>` runs before render — it reads a remembered choice from `localStorage` (`pickle-theme`), falling back to the OS preference via `prefers-color-scheme`. So there's no flash, and a returning viewer keeps their choice.
+- **The palette** lives in `HTMLReportGenerator.generateCSS()` as two `:root[data-theme=…]` blocks of variables (`--bg`, `--surface`, `--text`, `--muted`, `--faint`, `--accent`, `--error`, `--border`, `--shadow`, and status colours `--passed`/`--failed`/`--skipped`/`--undefined`). **To re-skin the report, change those variables** — everything else (cards, badges, progress bars, the sidebar) is expressed in terms of them. To match a different design system, copy that system's color tokens into the two blocks.
 
 ## Configuration
 

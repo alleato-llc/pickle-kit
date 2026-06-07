@@ -395,6 +395,18 @@ import Foundation
         #expect(html.contains("<span class=\"dot failed\">"))
     }
 
+    @Test func outlineGroupsAreExpandable() {
+        let result = makeSampleResult()
+        let html = generator.generate(from: result)
+        // Each feature in the outline is an expandable group: a twisty
+        // toggles its scenario list, with expand/collapse-all controls.
+        #expect(html.contains("class=\"outline-feature\""))
+        #expect(html.contains("class=\"outline-twisty\" onclick=\"toggleGroup(this)\""))
+        #expect(html.contains("class=\"outline-scenarios\""))
+        #expect(html.contains("toggleGroup"))
+        #expect(html.contains("outlineExpandAll"))
+    }
+
     @Test func isThemeableMatchingTheSite() {
         let result = makeSampleResult()
         let html = generator.generate(from: result)

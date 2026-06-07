@@ -51,11 +51,25 @@ public struct OutlineExpander: Sendable {
                     )
                 }
 
+                // Friendly naming, Cucumber-style: substitute <placeholder>
+                // tokens in the outline NAME (not just the steps). When the
+                // name carries no placeholders, label the scenario with its
+                // example VALUES rather than an opaque row index — so
+                // "Construction mistakes [Row 2]" becomes
+                // "Construction mistakes [Person(name: 7, …), 'name' is a String]".
+                let substitutedName = substitute(outline.name, with: substitutions)
                 let name: String
-                if outline.examples.count > 1 {
-                    name = "\(outline.name) [Examples \(exampleIndex + 1), Row \(rowIndex + 1)]"
+                if substitutedName != outline.name {
+                    name = substitutedName
                 } else {
-                    name = "\(outline.name) [Row \(rowIndex + 1)]"
+                    let label = row.joined(separator: ", ")
+                    if outline.examples.count > 1 {
+                        // Multiple example blocks: keep the block visible so
+                        // identical rows across blocks stay distinguishable.
+                        name = "\(outline.name) [Examples \(exampleIndex + 1): \(label)]"
+                    } else {
+                        name = "\(outline.name) [\(label)]"
+                    }
                 }
 
                 // Combine outline tags with example-level tags

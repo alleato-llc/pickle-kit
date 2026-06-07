@@ -54,8 +54,51 @@ import Testing
 
         let scenarios = expander.expandOutline(outline)
 
-        #expect(scenarios[0].name == "Login [Row 1]")
-        #expect(scenarios[1].name == "Login [Row 2]")
+        // No placeholder in the name → labelled with the example values.
+        #expect(scenarios[0].name == "Login [Alice]")
+        #expect(scenarios[1].name == "Login [Bob]")
+    }
+
+    @Test func placeholderInNameIsSubstituted() {
+        // Cucumber-standard: <param> tokens in the outline NAME are
+        // substituted from each row, giving self-describing scenario names.
+        let outline = ScenarioOutline(
+            name: "Adding <a> and <b>",
+            steps: [Step(keyword: .given, text: "<a> plus <b>")],
+            examples: [
+                ExamplesTable(
+                    table: DataTable(rows: [
+                        ["a", "b"],
+                        ["2", "3"],
+                        ["10", "20"],
+                    ])
+                ),
+            ]
+        )
+
+        let scenarios = expander.expandOutline(outline)
+
+        #expect(scenarios[0].name == "Adding 2 and 3")
+        #expect(scenarios[1].name == "Adding 10 and 20")
+    }
+
+    @Test func multiColumnFallbackNamingUsesAllValues() {
+        let outline = ScenarioOutline(
+            name: "Mistakes explain themselves",
+            steps: [Step(keyword: .when, text: "I run <expr>")],
+            examples: [
+                ExamplesTable(
+                    table: DataTable(rows: [
+                        ["expr", "message"],
+                        ["foo()", "missing arg"],
+                    ])
+                ),
+            ]
+        )
+
+        let scenarios = expander.expandOutline(outline)
+
+        #expect(scenarios[0].name == "Mistakes explain themselves [foo(), missing arg]")
     }
 
     @Test func multipleExamplesTablesNaming() {
@@ -82,9 +125,11 @@ import Testing
         let scenarios = expander.expandOutline(outline)
 
         #expect(scenarios.count == 3)
-        #expect(scenarios[0].name == "Access [Examples 1, Row 1]")
-        #expect(scenarios[1].name == "Access [Examples 2, Row 1]")
-        #expect(scenarios[2].name == "Access [Examples 2, Row 2]")
+        // No placeholder in the name + multiple blocks → block index kept,
+        // labelled with values.
+        #expect(scenarios[0].name == "Access [Examples 1: admin]")
+        #expect(scenarios[1].name == "Access [Examples 2: user]")
+        #expect(scenarios[2].name == "Access [Examples 2: guest]")
     }
 
     // MARK: - Tag Combination

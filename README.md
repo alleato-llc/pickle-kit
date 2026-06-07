@@ -176,7 +176,7 @@ Generate Cucumber-style HTML reports with per-step results, timing, and status f
 PICKLE_REPORT=1 swift test
 ```
 
-The report includes summary counts, per-feature sections with collapsible scenarios, per-step timing and error details, and interactive filtering controls.
+The report includes summary counts, collapsible per-feature sections with collapsible scenarios, per-step timing and error details, interactive filtering controls, and a collapsible outline sidebar for navigation. It's a single self-contained HTML file and is **themeable** — light/dark out of the box, following the system preference and remembering your choice. See [Report Configuration](docs/REPORTING.md#theming) for how to re-skin it.
 
 ![HTML test report showing a completed test run](docs/xcui-test-report.png)
 
