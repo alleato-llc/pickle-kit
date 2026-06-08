@@ -79,7 +79,7 @@ public struct HTMLReportGenerator: Sendable {
             .scenario summary::-webkit-details-marker { display: none; }
             .scenario summary::before { content: '\\25B6'; font-size: 10px; transition: transform 0.2s; color: var(--faint); }
             .scenario[open] summary::before { transform: rotate(90deg); }
-            .scenario-name { font-weight: 500; }
+            .scenario-name { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
             .scenario-duration { font-size: 12px; color: var(--faint); margin-left: auto; }
             .status-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
             .status-passed { background: color-mix(in srgb, var(--passed) 22%, transparent); color: var(--passed); }
@@ -89,7 +89,7 @@ public struct HTMLReportGenerator: Sendable {
             .steps { padding: 0 16px 12px 16px; }
             .step-row { display: flex; align-items: baseline; padding: 4px 0; font-size: 13px; }
             .step-keyword { color: var(--accent); font-weight: 600; min-width: 60px; }
-            .step-text { flex: 1; }
+            .step-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
             .step-duration { color: var(--faint); font-size: 11px; min-width: 70px; text-align: right; }
             .step-row.passed .step-text { color: var(--text); }
             .step-row.failed .step-text { color: var(--failed); }

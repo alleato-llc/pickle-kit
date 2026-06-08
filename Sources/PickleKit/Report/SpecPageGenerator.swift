@@ -152,11 +152,12 @@ public struct SpecPageGenerator: Sendable {
             .mark.passed { color: var(--passed); }
             .mark.failed { color: var(--failed); }
             .mark.skipped { color: var(--skipped); }
-            .scenario-name { flex: 1; }
+            .scenario-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
             .scenario.failed > summary { color: var(--failed); }
             .run-link { font-size: 0.72rem; color: var(--faint); white-space: nowrap; }
             .run-link:hover { color: var(--accent); }
             .steps { padding: 0.2rem 1.1rem 0.7rem 2.1rem; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 0.85rem; line-height: 1.7; }
+            .step { overflow-wrap: anywhere; }
             .step .kw { color: var(--accent); font-weight: 600; }
             .step .txt { color: var(--text); }
             .step.muted { color: var(--faint); font-style: italic; }
