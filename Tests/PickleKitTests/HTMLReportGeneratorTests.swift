@@ -222,7 +222,9 @@ import Foundation
 
         #expect(html.contains("&lt;script&gt;"))
         #expect(html.contains("&amp;"))
-        #expect(html.contains("&quot;quotes&quot;"))
+        // Quotes in TEXT content are left literal (only attribute values escape
+        // them) — the HTML-correct rule, now that Kumi does the escaping.
+        #expect(html.contains("\"quotes\""))
         #expect(!html.contains("<script>alert"))
     }
 
@@ -571,5 +573,58 @@ import Foundation
         #expect(result.passedScenarioCount == 1)
         #expect(result.failedScenarioCount == 1)
         #expect(result.skippedScenarioCount == 1)
+    }
+
+    // MARK: - Scenario Outline grouping
+
+    @Test func groupsScenarioOutlineExamplesPreservingAnchors() {
+        func example(_ label: String, _ idx: Int) -> ScenarioResult {
+            ScenarioResult(
+                scenarioName: "Precedence [\(label)]", passed: true, stepsExecuted: 1,
+                stepResults: [StepResult(keyword: "Then", text: "ok", status: .passed, sourceLine: 1)],
+                duration: 0.001, outlineName: "Precedence", exampleLabel: label)
+        }
+        let feature = FeatureResult(
+            featureName: "Math",
+            scenarioResults: [
+                example("2 + 3 * 4, 14", 0),
+                example("2^3^2, 512", 1),
+                ScenarioResult(scenarioName: "Modulo is exact", passed: true, stepsExecuted: 1,
+                    stepResults: [StepResult(keyword: "Then", text: "ok", status: .passed, sourceLine: 1)]),
+            ],
+            sourceFile: "math.feature")
+        let result = TestRunResult(featureResults: [feature], startTime: Date(), endTime: Date())
+        let html = HTMLReportGenerator().generate(from: result)
+
+        // One group, with the outline name and example count.
+        #expect(html.components(separatedBy: "class=\"outline-group\"").count - 1 == 1)
+        #expect(html.contains("class=\"outline-name\">Precedence</span>"))
+        #expect(html.contains("outline \u{00B7} 2"))
+        // Per-scenario anchors are unchanged — deep links still resolve.
+        #expect(html.contains("id=\"scenario-0-0\""))
+        #expect(html.contains("id=\"scenario-0-1\""))
+        #expect(html.contains("id=\"scenario-0-2\"")) // the ungrouped one
+        // Filter/expand JS knows about groups.
+        #expect(html.contains("details.feature, details.outline-group"))
+        // An all-passing group is collapsed by default (no ` open`).
+        #expect(html.contains("class=\"outline-group\" data-status=\"passed\">"))
+    }
+
+    @Test func failingOutlineGroupStaysOpen() {
+        func example(_ label: String, _ pass: Bool) -> ScenarioResult {
+            ScenarioResult(
+                scenarioName: "Precedence [\(label)]", passed: pass, stepsExecuted: 1,
+                stepResults: [StepResult(keyword: "Then", text: "ok",
+                                         status: pass ? .passed : .failed, sourceLine: 1)],
+                duration: 0.001, outlineName: "Precedence", exampleLabel: label)
+        }
+        let feature = FeatureResult(
+            featureName: "Math",
+            scenarioResults: [example("ok row", true), example("bad row", false)],
+            sourceFile: "math.feature")
+        let html = HTMLReportGenerator().generate(
+            from: TestRunResult(featureResults: [feature], startTime: Date(), endTime: Date()))
+        // A group containing a failure opens so the failing example shows.
+        #expect(html.contains("class=\"outline-group\" data-status=\"failed\" open>"))
     }
 }

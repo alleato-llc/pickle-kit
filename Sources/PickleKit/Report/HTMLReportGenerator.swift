@@ -1,4 +1,5 @@
 import Foundation
+import Kumi
 
 /// Generates a self-contained, interactive HTML **report** from a test run —
 /// the audit view (summary, filtering, collapsible features/scenarios,
@@ -17,34 +18,40 @@ public struct HTMLReportGenerator: Sendable {
         self.specLink = specLink
     }
 
-    /// Generate a complete HTML string from the test run result.
+    /// Generate a complete HTML string from the test run result. Structure is
+    /// built with Kumi; CSS, the theme pre-paint script, the summary, the rail,
+    /// and the page JS are pre-rendered text spliced in via `.raw`.
     public func generate(from result: TestRunResult) -> String {
-        var html = ""
-        html += "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n"
-        html += "<meta charset=\"UTF-8\">\n"
-        html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
-        html += "<title>PickleKit Test Report</title>\n"
-        html += ReportShared.themePrePaintScript()
-        html += generateCSS()
-        html += "</head>\n<body>\n"
-        html += generateHeader(from: result)
-        html += "<div class=\"page-layout\">\n"
-        html += ReportShared.railHTML(from: result)
-        html += "<div class=\"page-body\">\n"
-        html += ReportShared.summaryHTML(from: result)
-        html += "<div class=\"controls\">\n"
-        html += "  <button onclick=\"expandAll()\">Expand All</button>\n"
-        html += "  <button onclick=\"collapseAll()\">Collapse All</button>\n"
-        html += "  <button onclick=\"filterStatus('all')\" class=\"active\" data-filter=\"all\">All</button>\n"
-        html += "  <button onclick=\"filterStatus('passed')\" data-filter=\"passed\">Passed</button>\n"
-        html += "  <button onclick=\"filterStatus('skipped')\" data-filter=\"skipped\">Skipped</button>\n"
-        html += "  <button onclick=\"filterStatus('failed')\" data-filter=\"failed\">Failed</button>\n"
-        html += "</div>\n"
-        html += generateFeatures(from: result)
-        html += "</div>\n</div>\n"
-        html += generateJS()
-        html += "</body>\n</html>"
-        return html
+        Node.document(head: [
+            .tag("meta", [.attr("charset", "UTF-8")]),
+            .tag("meta", [.attr("name", "viewport"),
+                          .attr("content", "width=device-width, initial-scale=1.0")]),
+            .tag("title", [], text: "PickleKit Test Report"),
+            .raw(ReportShared.themePrePaintScript()),
+            .raw(generateCSS()),
+        ], body: [
+            generateHeader(from: result),
+            .tag("div", [.class("page-layout")], [
+                .raw(ReportShared.railHTML(from: result)),
+                .tag("div", [.class("page-body")], [
+                    .raw(ReportShared.summaryHTML(from: result)),
+                    .tag("div", [.class("controls")], [
+                        .tag("button", [.attr("onclick", "expandAll()")], text: "Expand All"),
+                        .tag("button", [.attr("onclick", "collapseAll()")], text: "Collapse All"),
+                        .tag("button", [.attr("onclick", "filterStatus('all')"), .class("active"),
+                                        .data("filter", "all")], text: "All"),
+                        .tag("button", [.attr("onclick", "filterStatus('passed')"),
+                                        .data("filter", "passed")], text: "Passed"),
+                        .tag("button", [.attr("onclick", "filterStatus('skipped')"),
+                                        .data("filter", "skipped")], text: "Skipped"),
+                        .tag("button", [.attr("onclick", "filterStatus('failed')"),
+                                        .data("filter", "failed")], text: "Failed"),
+                    ]),
+                    generateFeatures(from: result),
+                ]),
+            ]),
+            .raw(generateJS()),
+        ]).render()
     }
 
     /// Write the report HTML to a file path, creating intermediate directories if needed.
@@ -103,27 +110,33 @@ public struct HTMLReportGenerator: Sendable {
             """
     }
 
-    private func generateHeader(from result: TestRunResult) -> String {
+    private func generateHeader(from result: TestRunResult) -> Node {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .medium
         let duration = ReportShared.formatDuration(result.duration)
 
-        var html = "<header class=\"page-header\">\n"
-        html += "  <div class=\"page-header-row\">\n"
-        html += "    <div class=\"page-header-left\">\(ReportShared.railToggleButton())<h1>PickleKit Test Report</h1></div>\n"
-        html += "    \(ReportShared.themeToggleButton())\n"
-        html += "  </div>\n"
-        html += "  <div class=\"page-sub\">\(ReportShared.esc(formatter.string(from: result.startTime))) &mdash; Duration: \(duration)</div>\n"
+        var children: [Node] = [
+            .tag("div", [.class("page-header-row")], [
+                .tag("div", [.class("page-header-left")], [
+                    .raw(ReportShared.railToggleButton()),
+                    .tag("h1", [], text: "PickleKit Test Report"),
+                ]),
+                .raw(ReportShared.themeToggleButton()),
+            ]),
+            .tag("div", [.class("page-sub")],
+                 text: "\(formatter.string(from: result.startTime)) \u{2014} Duration: \(duration)"),
+        ]
         if let specLink {
-            html += "  <p class=\"cross-link\"><a href=\"\(ReportShared.esc(specLink))\">\u{2190} Read it as a specification</a></p>\n"
+            children.append(.tag("p", [.class("cross-link")], [
+                .tag("a", [.href(specLink)], text: "\u{2190} Read it as a specification"),
+            ]))
         }
-        html += "</header>\n"
-        return html
+        return .tag("header", [.class("page-header")], children)
     }
 
-    private func generateFeatures(from result: TestRunResult) -> String {
-        var html = ""
+    private func generateFeatures(from result: TestRunResult) -> Node {
+        var features: [Node] = []
         for (i, feature) in result.featureResults.enumerated() {
             let featureStatus: String
             if feature.failedCount > 0 {
@@ -133,61 +146,97 @@ public struct HTMLReportGenerator: Sendable {
             } else {
                 featureStatus = "passed"
             }
-            html += "<details class=\"feature\" id=\"\(ReportShared.featureAnchor(i))\" data-status=\"\(featureStatus)\" open>\n"
-            html += "  <summary class=\"feature-header\">\n"
-            html += "    <div class=\"feature-title\">\n"
-            html += "      <h2>\(ReportShared.esc(feature.featureName))</h2>\n"
-            if !feature.tags.isEmpty {
-                html += " "
-                for tag in feature.tags { html += "<span class=\"tag\">@\(ReportShared.esc(tag))</span>" }
-            }
-            html += "\n    </div>\n"
-            html += "    <span class=\"feature-stats\">"
-            let executedCount = feature.scenarioResults.count - feature.skippedCount
-            html += "\(feature.passedCount)/\(executedCount) scenarios passed"
-            if feature.skippedCount > 0 { html += ", \(feature.skippedCount) skipped" }
-            html += " &middot; \(ReportShared.formatDuration(feature.duration))"
-            html += "</span>\n"
-            html += "  </summary>\n"
 
-            for (j, scenario) in feature.scenarioResults.enumerated() {
-                let statusClass = scenario.skipped ? "skipped" : (scenario.passed ? "passed" : "failed")
-                let openAttr = (!scenario.passed && !scenario.skipped) ? " open" : ""
-                html += "  <details class=\"scenario\" id=\"\(ReportShared.scenarioAnchor(i, j))\" data-status=\"\(statusClass)\"\(openAttr)>\n"
-                html += "    <summary>\n"
-                html += "      <span class=\"scenario-name\">\(ReportShared.esc(scenario.scenarioName))</span>\n"
-                html += "      <span class=\"status-badge status-\(statusClass)\">\(statusClass)</span>\n"
-                if !scenario.tags.isEmpty {
-                    for tag in scenario.tags { html += "      <span class=\"tag\">@\(ReportShared.esc(tag))</span>\n" }
+            var title: [Node] = [.tag("h2", [], text: feature.featureName)]
+            for tag in feature.tags { title.append(.tag("span", [.class("tag")], text: "@\(tag)")) }
+
+            let executedCount = feature.scenarioResults.count - feature.skippedCount
+            var stats = "\(feature.passedCount)/\(executedCount) scenarios passed"
+            if feature.skippedCount > 0 { stats += ", \(feature.skippedCount) skipped" }
+            stats += " \u{00B7} \(ReportShared.formatDuration(feature.duration))"
+
+            var children: [Node] = [
+                .tag("summary", [.class("feature-header")], [
+                    .tag("div", [.class("feature-title")], title),
+                    .tag("span", [.class("feature-stats")], text: stats),
+                ]),
+            ]
+
+            // Outline examples collapse under one group header; standalone
+            // scenarios render flat. Per-scenario anchors/ids are unchanged.
+            for segment in ReportShared.segments(feature.scenarioResults) {
+                switch segment {
+                case .single(let j, let scenario):
+                    children.append(scenarioNode(featureIndex: i, scenarioIndex: j, scenario: scenario,
+                                                 displayName: scenario.scenarioName))
+                case .outline(let name, let cases):
+                    let status = ReportShared.groupStatus(cases)
+                    // Collapsed by default, but a group with a failure opens so
+                    // the failing example stays visible (like a failed scenario).
+                    var attributes: [Attribute] = [.class("outline-group"), .data("status", status)]
+                    if status == "failed" { attributes.append(.flag("open")) }
+                    children.append(.tag("details", attributes, [
+                        .tag("summary", [], [
+                            .tag("span", [.class("outline-name")], text: name),
+                            .tag("span", [.class("outline-badge")], text: "outline \u{00B7} \(cases.count)"),
+                            .tag("span", [.class("status-badge status-\(status)")], text: status),
+                        ]),
+                        .tag("div", [.class("outline-cases")], cases.map {
+                            scenarioNode(featureIndex: i, scenarioIndex: $0.index, scenario: $0.scenario,
+                                         displayName: $0.scenario.exampleLabel ?? $0.scenario.scenarioName)
+                        }),
+                    ]))
                 }
-                html += "      <span class=\"scenario-duration\">\(ReportShared.formatDuration(scenario.duration))</span>\n"
-                html += "    </summary>\n"
-                html += "    <div class=\"steps\">\n"
-                for stepResult in scenario.stepResults {
-                    let stepClass = stepResult.status.rawValue
-                    html += "      <div class=\"step-row \(stepClass)\">\n"
-                    html += "        <span class=\"step-keyword\">\(ReportShared.esc(stepResult.keyword))</span>\n"
-                    html += "        <span class=\"step-text\">\(ReportShared.esc(stepResult.text))</span>\n"
-                    if stepResult.duration > 0 {
-                        html += "        <span class=\"step-duration\">\(ReportShared.formatDuration(stepResult.duration))</span>\n"
-                    }
-                    html += "      </div>\n"
-                    if let error = stepResult.error {
-                        html += "      <div class=\"step-error\">\(ReportShared.esc(error))</div>\n"
-                    }
-                }
-                html += "    </div>\n"
-                html += "  </details>\n"
             }
-            html += "</details>\n"
+            features.append(.tag("details", [.class("feature"), .id(ReportShared.featureAnchor(i)),
+                                            .data("status", featureStatus), .flag("open")], children))
         }
-        return html
+        return .fragment(features)
+    }
+
+    /// One scenario's `<details>` block. `displayName` lets a grouped outline
+    /// case show just its example label (the outline name sits in the header).
+    private func scenarioNode(featureIndex i: Int, scenarioIndex j: Int,
+                              scenario: ScenarioResult, displayName: String) -> Node {
+        let statusClass = scenario.skipped ? "skipped" : (scenario.passed ? "passed" : "failed")
+        var attributes: [Attribute] = [.class("scenario"), .id(ReportShared.scenarioAnchor(i, j)),
+                                       .data("status", statusClass)]
+        if !scenario.passed && !scenario.skipped { attributes.append(.flag("open")) }
+
+        var summary: [Node] = [
+            .tag("span", [.class("scenario-name")], text: displayName),
+            .tag("span", [.class("status-badge status-\(statusClass)")], text: statusClass),
+        ]
+        for tag in scenario.tags { summary.append(.tag("span", [.class("tag")], text: "@\(tag)")) }
+        summary.append(.tag("span", [.class("scenario-duration")],
+                            text: ReportShared.formatDuration(scenario.duration)))
+
+        var steps: [Node] = []
+        for stepResult in scenario.stepResults {
+            var row: [Node] = [
+                .tag("span", [.class("step-keyword")], text: stepResult.keyword),
+                .tag("span", [.class("step-text")], text: stepResult.text),
+            ]
+            if stepResult.duration > 0 {
+                row.append(.tag("span", [.class("step-duration")],
+                                text: ReportShared.formatDuration(stepResult.duration)))
+            }
+            steps.append(.tag("div", [.class("step-row \(stepResult.status.rawValue)")], row))
+            if let error = stepResult.error {
+                steps.append(.tag("div", [.class("step-error")], text: error))
+            }
+        }
+
+        return .tag("details", attributes, [
+            .tag("summary", [], summary),
+            .tag("div", [.class("steps")], steps),
+        ])
     }
 
     private func generateJS() -> String {
         return "<script>\n" + """
             function expandAll() {
-              document.querySelectorAll('details.feature').forEach(d => d.open = true);
+              document.querySelectorAll('details.feature, details.outline-group').forEach(d => d.open = true);
               document.querySelectorAll('details.scenario:not(.hidden)').forEach(d => d.open = true);
             }
             function collapseAll() {
@@ -206,6 +255,12 @@ public struct HTMLReportGenerator: Sendable {
                   } else {
                     s.classList.add('hidden');
                   }
+                });
+                // An outline group hides when none of its examples match.
+                feature.querySelectorAll('.outline-group').forEach(g => {
+                  const visible = g.querySelector('.scenario:not(.hidden)');
+                  g.classList.toggle('hidden', !visible);
+                  if (visible) g.open = true;
                 });
                 feature.classList.toggle('hidden', !anyVisible);
                 if (anyVisible) feature.open = true;

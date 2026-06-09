@@ -12,10 +12,15 @@ let package = Package(
     products: [
         .library(name: "PickleKit", targets: ["PickleKit"]),
     ],
+    dependencies: [
+        // Kumi (組) — the report/spec HTML is assembled with this owned,
+        // zero-dependency builder instead of hand-written tag strings.
+        .package(url: "https://github.com/alleato-llc/kumi.git", from: "0.1.0"),
+    ],
     targets: [
         .target(
             name: "PickleKit",
-            dependencies: [],
+            dependencies: [.product(name: "Kumi", package: "kumi")],
             path: "Sources/PickleKit"
         ),
         .testTarget(

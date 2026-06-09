@@ -139,4 +139,35 @@ import Foundation
         let result = collector.buildTestRunResult()
         #expect(result.featureResults[0].description == "As a user\nI want X")
     }
+
+    // Consecutive examples from one Scenario Outline collapse under a single
+    // header (name + count); a standalone scenario stays ungrouped.
+    @Test func groupsScenarioOutlineExamples() {
+        func example(_ label: String) -> ScenarioResult {
+            ScenarioResult(
+                scenarioName: "Precedence [\(label)]", passed: true, stepsExecuted: 1,
+                stepResults: [StepResult(keyword: "Then", text: "ok", status: .passed, sourceLine: 1)],
+                duration: 0.001, outlineName: "Precedence", exampleLabel: label)
+        }
+        let plain = ScenarioResult(
+            scenarioName: "Modulo is exact", passed: true, stepsExecuted: 1,
+            stepResults: [StepResult(keyword: "Then", text: "ok", status: .passed, sourceLine: 1)],
+            duration: 0.001)
+        let feature = FeatureResult(
+            featureName: "Math",
+            scenarioResults: [example("2 + 3 * 4, 14"), example("2^3^2, 512"), plain],
+            sourceFile: "math.feature", duration: 0.003)
+        let html = SpecPageGenerator().generate(
+            from: TestRunResult(featureResults: [feature], startTime: Date(), endTime: Date()))
+
+        // One outline group, with the outline name and the example count.
+        #expect(html.components(separatedBy: "class=\"outline-group\"").count - 1 == 1)
+        #expect(html.contains("class=\"outline-name\">Precedence</span>"))
+        #expect(html.contains("outline \u{00B7} 2"))
+        // Each example shows by its label, inside the group's case list.
+        #expect(html.contains("2 + 3 * 4, 14"))
+        #expect(html.contains("class=\"outline-cases\""))
+        // The plain scenario renders, ungrouped.
+        #expect(html.contains("Modulo is exact"))
+    }
 }

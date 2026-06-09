@@ -127,6 +127,22 @@ enum ReportShared {
         /* Feature sections render as the SAME card on both views — defined
            by a border, not a grey fill, so the theme stays clean. */
         .feature, .spec-feature { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+        /* Scenario-outline groups: an outline's expanded examples collapse
+           under one header (name + count), so a run of cases reads as one
+           family instead of N look-alike rows. The accent stripe marks the
+           span; nested cases indent and lose their own top border. */
+        .outline-group { border-top: 1px solid var(--border); }
+        .outline-group > summary { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1.1rem; cursor: pointer; list-style: none; border-left: 3px solid var(--accent); }
+        .outline-group > summary::-webkit-details-marker { display: none; }
+        .outline-group > summary::before { content: '\\25B6'; font-size: 10px; color: var(--faint); transition: transform 0.2s; flex: none; }
+        .outline-group[open] > summary::before { transform: rotate(90deg); }
+        .outline-group > summary:hover { background: color-mix(in srgb, var(--faint) 8%, transparent); }
+        .outline-group[data-status="failed"] > summary { color: var(--failed); }
+        .outline-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+        .outline-badge { flex: none; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); padding: 2px 8px; border-radius: 999px; }
+        .outline-cases { border-left: 3px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+        .outline-cases > .scenario { border-top: 1px dashed var(--border); }
+        .outline-cases > .scenario:first-child { border-top: none; }
         """
     }
 
@@ -146,6 +162,48 @@ enum ReportShared {
         }
         html += "  </ul>\n</nav>\n"
         return html
+    }
+
+    // MARK: Outline grouping (shared by both views)
+
+    /// One run of a feature's scenarios: either a standalone scenario or a
+    /// group of consecutive examples from the same `Scenario Outline`. The
+    /// original index is preserved so anchors (`scenarioAnchor(feature, index)`)
+    /// stay stable across both views.
+    enum ScenarioSegment {
+        case single(index: Int, scenario: ScenarioResult)
+        case outline(name: String, cases: [(index: Int, scenario: ScenarioResult)])
+    }
+
+    /// Folds a feature's scenarios into segments: consecutive results sharing a
+    /// non-nil `outlineName` collapse into one `.outline` group; everything
+    /// else passes through as `.single`. Expansion is in source order, so a
+    /// simple run-length pass groups each outline's examples exactly.
+    static func segments(_ scenarios: [ScenarioResult]) -> [ScenarioSegment] {
+        var segments: [ScenarioSegment] = []
+        var i = 0
+        while i < scenarios.count {
+            let s = scenarios[i]
+            guard let outline = s.outlineName else {
+                segments.append(.single(index: i, scenario: s))
+                i += 1
+                continue
+            }
+            var cases: [(index: Int, scenario: ScenarioResult)] = []
+            while i < scenarios.count, scenarios[i].outlineName == outline {
+                cases.append((index: i, scenario: scenarios[i]))
+                i += 1
+            }
+            segments.append(.outline(name: outline, cases: cases))
+        }
+        return segments
+    }
+
+    /// A group's rolled-up status for its header badge/colour.
+    static func groupStatus(_ cases: [(index: Int, scenario: ScenarioResult)]) -> String {
+        if cases.contains(where: { !$0.scenario.passed && !$0.scenario.skipped }) { return "failed" }
+        if cases.allSatisfy({ $0.scenario.skipped }) { return "skipped" }
+        return "passed"
     }
 
     /// jumpTo (opens a target that's a <details> or inside one, then scrolls)

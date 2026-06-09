@@ -74,17 +74,29 @@ public struct Scenario: Sendable, Equatable {
     public let tags: [String]
     public let steps: [Step]
     public let sourceLine: Int
+    /// When this scenario was produced by expanding a `Scenario Outline`, the
+    /// outline's name (the group key); nil for a plain scenario. Set by
+    /// `OutlineExpander` so reports can group an outline's examples together.
+    public let outlineName: String?
+    /// For an outline-derived scenario, the part that distinguishes this
+    /// example from its siblings (the substituted name, or the Examples-row
+    /// values) — shown as the row label under the grouped outline header.
+    public let exampleLabel: String?
 
     public init(
         name: String,
         tags: [String] = [],
         steps: [Step] = [],
-        sourceLine: Int = 0
+        sourceLine: Int = 0,
+        outlineName: String? = nil,
+        exampleLabel: String? = nil
     ) {
         self.name = name
         self.tags = tags
         self.steps = steps
         self.sourceLine = sourceLine
+        self.outlineName = outlineName
+        self.exampleLabel = exampleLabel
     }
 }
 

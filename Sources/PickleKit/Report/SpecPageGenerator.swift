@@ -1,4 +1,5 @@
 import Foundation
+import Kumi
 
 /// Renders a test run as a **living specification** — the companion to the
 /// report. Where the report is a pass/fail dashboard for auditing, the spec
@@ -20,25 +21,25 @@ public struct SpecPageGenerator: Sendable {
         self.reportLink = reportLink
     }
 
-    /// Generate the complete living-specification HTML.
+    /// Generate the complete living-specification HTML. The structure is built
+    /// with Kumi; CSS, the theme pre-paint script, the rail, and the page JS
+    /// are pre-rendered text spliced in via `.raw`.
     public func generate(from result: TestRunResult) -> String {
-        var html = ""
-        html += "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n"
-        html += "<meta charset=\"UTF-8\">\n"
-        html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
-        html += "<title>\(ReportShared.esc(title))</title>\n"
-        html += ReportShared.themePrePaintScript()
-        html += generateCSS()
-        html += "</head>\n<body>\n"
-        html += generateHeader(from: result)
-        html += "<div class=\"page-layout\">\n"
-        html += ReportShared.railHTML(from: result)
-        html += "<div class=\"page-body\">\n"
-        html += generateFeatures(from: result)
-        html += "</div>\n</div>\n"
-        html += generateJS()
-        html += "</body>\n</html>"
-        return html
+        Node.document(head: [
+            .tag("meta", [.attr("charset", "UTF-8")]),
+            .tag("meta", [.attr("name", "viewport"),
+                          .attr("content", "width=device-width, initial-scale=1.0")]),
+            .tag("title", [], text: title),
+            .raw(ReportShared.themePrePaintScript()),
+            .raw(generateCSS()),
+        ], body: [
+            generateHeader(from: result),
+            .tag("div", [.class("page-layout")], [
+                .raw(ReportShared.railHTML(from: result)),
+                .tag("div", [.class("page-body")], [generateFeatures(from: result)]),
+            ]),
+            .raw(generateJS()),
+        ]).render()
     }
 
     /// Write the living-specification HTML to a path, creating directories.
@@ -52,81 +53,124 @@ public struct SpecPageGenerator: Sendable {
 
     // MARK: - Generators
 
-    private func generateHeader(from result: TestRunResult) -> String {
+    private func generateHeader(from result: TestRunResult) -> Node {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         let total = result.totalScenarioCount
         let allGreen = result.failedScenarioCount == 0
-
-        var html = "<header class=\"page-header\">\n"
-        html += "  <div class=\"page-header-row\">\n"
-        html += "    <div class=\"page-header-left\">\(ReportShared.railToggleButton())<h1>\(ReportShared.esc(title))</h1></div>\n"
-        html += "    \(ReportShared.themeToggleButton())\n"
-        html += "  </div>\n"
         // The verified line carries the SHARED COUNTS (scale of the spec) —
         // not the report's pass/fail/progress chrome, which stays report-only.
         let scale = "\(result.totalFeatureCount) features · \(total) behaviors · \(result.totalStepCount) steps"
-        html += "  <p class=\"page-sub\">"
+
+        var sub: [Node]
         if allGreen {
-            html += "<span class=\"check\">\u{2713}</span> \(scale) — <strong>every one verified</strong>"
+            sub = [.tag("span", [.class("check")], text: "\u{2713}"),
+                   .text(" \(scale) — "),
+                   .tag("strong", [], text: "every one verified")]
         } else {
-            html += "\(scale) — \(result.passedScenarioCount) of \(total) verified, \(result.failedScenarioCount) failing"
+            sub = [.text("\(scale) — \(result.passedScenarioCount) of \(total) verified, "
+                         + "\(result.failedScenarioCount) failing")]
         }
-        html += " · \(ReportShared.esc(formatter.string(from: result.endTime)))</p>\n"
+        sub.append(.text(" · \(formatter.string(from: result.endTime))"))
+
+        var children: [Node] = [
+            .tag("div", [.class("page-header-row")], [
+                .tag("div", [.class("page-header-left")], [
+                    .raw(ReportShared.railToggleButton()),
+                    .tag("h1", [], text: title),
+                ]),
+                .raw(ReportShared.themeToggleButton()),
+            ]),
+            .tag("p", [.class("page-sub")], sub),
+        ]
         if let reportLink {
-            html += "  <p class=\"cross-link\"><a href=\"\(ReportShared.esc(reportLink))\">View the full test report \u{2197}</a></p>\n"
+            children.append(.tag("p", [.class("cross-link")], [
+                .tag("a", [.href(reportLink)], text: "View the full test report \u{2197}"),
+            ]))
         }
-        html += "</header>\n"
-        return html
+        return .tag("header", [.class("page-header")], children)
     }
 
-    private func generateFeatures(from result: TestRunResult) -> String {
-        var html = ""
+    private func generateFeatures(from result: TestRunResult) -> Node {
+        var sections: [Node] = []
         for (i, feature) in result.featureResults.enumerated() {
             let verified = feature.allPassed
-            html += "<section class=\"spec-feature\" id=\"\(ReportShared.featureAnchor(i))\">\n"
-            html += "  <div class=\"feature-head\">\n"
-            html += "    <h2>\(ReportShared.esc(feature.featureName))</h2>\n"
-            html += "    <span class=\"verified \(verified ? "ok" : "bad")\">"
-            html += verified ? "\u{2713} \(feature.scenarioResults.count) examples" : "\u{2717} \(feature.failedCount) failing"
-            html += "</span>\n"
-            html += "  </div>\n"
+            var children: [Node] = [
+                .tag("div", [.class("feature-head")], [
+                    .tag("h2", [], text: feature.featureName),
+                    .tag("span", [.class("verified \(verified ? "ok" : "bad")")],
+                         text: verified ? "\u{2713} \(feature.scenarioResults.count) examples"
+                                        : "\u{2717} \(feature.failedCount) failing"),
+                ]),
+            ]
             if !feature.tags.isEmpty {
-                html += "  <div class=\"tags\">"
-                for tag in feature.tags { html += "<span class=\"tag\">@\(ReportShared.esc(tag))</span>" }
-                html += "</div>\n"
+                children.append(.tag("div", [.class("tags")],
+                    feature.tags.map { .tag("span", [.class("tag")], text: "@\($0)") }))
             }
             if !feature.description.isEmpty {
-                html += "  <p class=\"narrative\">\(ReportShared.esc(feature.description))</p>\n"
+                children.append(.tag("p", [.class("narrative")], text: feature.description))
             }
 
-            for (j, scenario) in feature.scenarioResults.enumerated() {
-                let status = scenario.skipped ? "skipped" : (scenario.passed ? "passed" : "failed")
-                let mark = scenario.skipped ? "\u{25CB}" : (scenario.passed ? "\u{2713}" : "\u{2717}")
-                html += "  <details class=\"scenario \(status)\">\n"
-                html += "    <summary>\n"
-                html += "      <span class=\"mark \(status)\">\(mark)</span>\n"
-                html += "      <span class=\"scenario-name\">\(ReportShared.esc(scenario.scenarioName))</span>\n"
-                if let reportLink {
-                    let anchor = "\(reportLink)#\(ReportShared.scenarioAnchor(i, j))"
-                    html += "      <a class=\"run-link\" href=\"\(ReportShared.esc(anchor))\" title=\"See this run in the report\">run \u{2197}</a>\n"
+            // Consecutive examples from one Scenario Outline collapse under a
+            // single header; standalone scenarios render flat.
+            for segment in ReportShared.segments(feature.scenarioResults) {
+                switch segment {
+                case .single(let j, let scenario):
+                    children.append(scenarioNode(featureIndex: i, scenarioIndex: j, scenario: scenario,
+                                                 displayName: scenario.scenarioName))
+                case .outline(let name, let cases):
+                    let status = ReportShared.groupStatus(cases)
+                    // Collapsed by default — the header (name + count) is the summary.
+                    children.append(.tag("details", [.class("outline-group"), .data("status", status)], [
+                        .tag("summary", [], [
+                            .tag("span", [.class("outline-name")], text: name),
+                            .tag("span", [.class("outline-badge")], text: "outline \u{00B7} \(cases.count)"),
+                        ]),
+                        .tag("div", [.class("outline-cases")], cases.map {
+                            scenarioNode(featureIndex: i, scenarioIndex: $0.index, scenario: $0.scenario,
+                                         displayName: $0.scenario.exampleLabel ?? $0.scenario.scenarioName)
+                        }),
+                    ]))
                 }
-                html += "    </summary>\n"
-                html += "    <div class=\"steps\">\n"
-                for step in scenario.stepResults {
-                    html += "      <div class=\"step\"><span class=\"kw\">\(ReportShared.esc(step.keyword))</span> "
-                    html += "<span class=\"txt\">\(ReportShared.esc(step.text))</span></div>\n"
-                }
-                if scenario.stepResults.isEmpty {
-                    html += "      <div class=\"step muted\">(no steps recorded)</div>\n"
-                }
-                html += "    </div>\n"
-                html += "  </details>\n"
             }
-            html += "</section>\n"
+            sections.append(.tag("section", [.class("spec-feature"),
+                                             .id(ReportShared.featureAnchor(i))], children))
         }
-        return html
+        return .fragment(sections)
+    }
+
+    /// One scenario's `<details>` block. `displayName` lets a grouped outline
+    /// case show just its example label (the outline name sits in the header).
+    private func scenarioNode(featureIndex i: Int, scenarioIndex j: Int,
+                              scenario: ScenarioResult, displayName: String) -> Node {
+        let status = scenario.skipped ? "skipped" : (scenario.passed ? "passed" : "failed")
+        let mark = scenario.skipped ? "\u{25CB}" : (scenario.passed ? "\u{2713}" : "\u{2717}")
+
+        var summary: [Node] = [
+            .tag("span", [.class("mark \(status)")], text: mark),
+            .tag("span", [.class("scenario-name")], text: displayName),
+        ]
+        if let reportLink {
+            summary.append(.tag("a", [.class("run-link"),
+                                      .href("\(reportLink)#\(ReportShared.scenarioAnchor(i, j))"),
+                                      .attr("title", "See this run in the report")], text: "run \u{2197}"))
+        }
+
+        let steps: [Node] = scenario.stepResults.isEmpty
+            ? [.tag("div", [.class("step muted")], text: "(no steps recorded)")]
+            : scenario.stepResults.map { step in
+                .tag("div", [.class("step")], [
+                    .tag("span", [.class("kw")], text: step.keyword),
+                    .text(" "),
+                    .tag("span", [.class("txt")], text: step.text),
+                ])
+            }
+
+        return .tag("details", [.class("scenario \(status)")], [
+            .tag("summary", [], summary),
+            .tag("div", [.class("steps")], steps),
+        ])
     }
 
     private func generateCSS() -> String {

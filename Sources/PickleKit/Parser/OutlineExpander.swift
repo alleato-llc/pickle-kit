@@ -59,16 +59,22 @@ public struct OutlineExpander: Sendable {
                 // "Construction mistakes [Person(name: 7, …), 'name' is a String]".
                 let substitutedName = substitute(outline.name, with: substitutions)
                 let name: String
+                // The per-example label — the part that distinguishes this row
+                // from its siblings, shown beneath the grouped outline header.
+                let exampleLabel: String
                 if substitutedName != outline.name {
                     name = substitutedName
+                    exampleLabel = substitutedName
                 } else {
                     let label = row.joined(separator: ", ")
                     if outline.examples.count > 1 {
                         // Multiple example blocks: keep the block visible so
                         // identical rows across blocks stay distinguishable.
                         name = "\(outline.name) [Examples \(exampleIndex + 1): \(label)]"
+                        exampleLabel = "Examples \(exampleIndex + 1): \(label)"
                     } else {
                         name = "\(outline.name) [\(label)]"
+                        exampleLabel = label
                     }
                 }
 
@@ -79,7 +85,9 @@ public struct OutlineExpander: Sendable {
                     name: name,
                     tags: combinedTags,
                     steps: expandedSteps,
-                    sourceLine: outline.sourceLine
+                    sourceLine: outline.sourceLine,
+                    outlineName: outline.name,
+                    exampleLabel: exampleLabel
                 )
                 scenarios.append(scenario)
             }

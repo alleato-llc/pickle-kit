@@ -30,6 +30,11 @@ public struct ScenarioResult: Sendable {
     public let tags: [String]
     public let stepResults: [StepResult]
     public let duration: TimeInterval
+    /// When this case came from a `Scenario Outline`, the outline's name (the
+    /// group key) and this example's label; nil for a plain scenario. Reports
+    /// group an outline's examples under one collapsible header by these.
+    public let outlineName: String?
+    public let exampleLabel: String?
 
     public init(
         scenarioName: String,
@@ -39,7 +44,9 @@ public struct ScenarioResult: Sendable {
         stepsExecuted: Int = 0,
         tags: [String] = [],
         stepResults: [StepResult] = [],
-        duration: TimeInterval = 0
+        duration: TimeInterval = 0,
+        outlineName: String? = nil,
+        exampleLabel: String? = nil
     ) {
         self.scenarioName = scenarioName
         self.passed = passed
@@ -49,6 +56,8 @@ public struct ScenarioResult: Sendable {
         self.tags = tags
         self.stepResults = stepResults
         self.duration = duration
+        self.outlineName = outlineName
+        self.exampleLabel = exampleLabel
     }
 }
 
@@ -170,7 +179,9 @@ public final class ScenarioRunner: Sendable {
                 stepsExecuted: stepsExecuted,
                 tags: scenario.tags,
                 stepResults: stepResults,
-                duration: scenarioDuration.timeInterval
+                duration: scenarioDuration.timeInterval,
+                outlineName: scenario.outlineName,
+                exampleLabel: scenario.exampleLabel
             )
         } catch {
             // Mark the failing step
@@ -212,7 +223,9 @@ public final class ScenarioRunner: Sendable {
                 stepsExecuted: stepsExecuted,
                 tags: scenario.tags,
                 stepResults: stepResults,
-                duration: scenarioDuration.timeInterval
+                duration: scenarioDuration.timeInterval,
+                outlineName: scenario.outlineName,
+                exampleLabel: scenario.exampleLabel
             )
         }
     }
@@ -238,7 +251,9 @@ public final class ScenarioRunner: Sendable {
                         scenarioName: scenario.name,
                         passed: true,
                         skipped: true,
-                        tags: scenario.tags
+                        tags: scenario.tags,
+                        outlineName: scenario.outlineName,
+                        exampleLabel: scenario.exampleLabel
                     ))
                     continue
                 }
