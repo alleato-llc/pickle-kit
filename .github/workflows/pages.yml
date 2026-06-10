@@ -32,11 +32,17 @@ jobs:
       - name: Generate spec + report
         run: |
           mkdir -p _site
+          # The report is a side effect of running the scenarios — this is the
+          # showcase, not the test gate (ci.yml gates the suite). The dogfooded
+          # run includes intentional failures and some env-var-parallel tests,
+          # so don't stop on a non-zero status; instead require that the report
+          # and spec were actually written.
           PICKLE_REPORT=1 \
             PICKLE_REPORT_PATH="$PWD/_site/report.html" \
             PICKLE_SPEC_PATH="$PWD/_site/index.html" \
             PICKLE_SPEC_TITLE="PickleKit — Living Specification" \
-            swift test
+            swift test || true
+          test -s _site/report.html && test -s _site/index.html
 
       - name: Screenshot
         run: |
