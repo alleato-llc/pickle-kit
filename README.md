@@ -184,9 +184,9 @@ The report includes summary counts, collapsible per-feature sections, **Scenario
 
 Every colour is a CSS custom property, so re-skinning the report is one block. It ships **four palettes** — `light` (Solarized) and `dark` (Dracula) are the pair the ◐ toggle and your OS preference choose between, plus `nord` and `gruvbox` to show the rest. Any page can be deep-linked to a palette with `?theme=<id>`. Here is the *same report*, re-skinned — click one to open it live:
 
-| [Solarized (light)](https://alleato-llc.github.io/pickle-kit/report.html) | [Nord](https://alleato-llc.github.io/pickle-kit/report.html?theme=nord) | [Gruvbox](https://alleato-llc.github.io/pickle-kit/report.html?theme=gruvbox) |
-|:---:|:---:|:---:|
-| [![Solarized](https://alleato-llc.github.io/pickle-kit/screenshots/report.png)](https://alleato-llc.github.io/pickle-kit/report.html) | [![Nord](https://alleato-llc.github.io/pickle-kit/screenshots/report-nord.png)](https://alleato-llc.github.io/pickle-kit/report.html?theme=nord) | [![Gruvbox](https://alleato-llc.github.io/pickle-kit/screenshots/report-gruvbox.png)](https://alleato-llc.github.io/pickle-kit/report.html?theme=gruvbox) |
+| [Solarized (light)](https://alleato-llc.github.io/pickle-kit/report.html) | [Dracula (dark)](https://alleato-llc.github.io/pickle-kit/report.html?theme=dark) | [Nord](https://alleato-llc.github.io/pickle-kit/report.html?theme=nord) | [Gruvbox](https://alleato-llc.github.io/pickle-kit/report.html?theme=gruvbox) |
+|:---:|:---:|:---:|:---:|
+| [![Solarized](https://alleato-llc.github.io/pickle-kit/screenshots/report.png)](https://alleato-llc.github.io/pickle-kit/report.html) | [![Dracula](https://alleato-llc.github.io/pickle-kit/screenshots/report-dark.png)](https://alleato-llc.github.io/pickle-kit/report.html?theme=dark) | [![Nord](https://alleato-llc.github.io/pickle-kit/screenshots/report-nord.png)](https://alleato-llc.github.io/pickle-kit/report.html?theme=nord) | [![Gruvbox](https://alleato-llc.github.io/pickle-kit/screenshots/report-gruvbox.png)](https://alleato-llc.github.io/pickle-kit/report.html?theme=gruvbox) |
 
 To match your own design system, copy its colour tokens into a new theme — see [Report Configuration](docs/REPORTING.md) for the palette tokens, `?theme=` deep-linking, xcodebuild integration, and programmatic generation.
 

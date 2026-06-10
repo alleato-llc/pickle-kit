@@ -68,6 +68,7 @@ jobs:
           }
           shoot index         "index.html"
           shoot report         "report.html"
+          shoot report-dark    "report.html?theme=dark"
           shoot report-nord    "report.html?theme=nord"
           shoot report-gruvbox "report.html?theme=gruvbox"
           python3 .github/scripts/trim.py /tmp/shots _site/screenshots

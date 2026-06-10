@@ -28,7 +28,7 @@ The report is themeable and ships **four palettes** out of the box: `light` (Sol
 
 ## Hosted demo
 
-A live report + living spec, regenerated on every push, is published to GitHub Pages: **[alleato-llc.github.io/pickle-kit](https://alleato-llc.github.io/pickle-kit/)** (the spec is the front door; the report is one click away). It's PickleKit's own cucumber feature fixtures — run in one deterministic pass by `GherkinIntegrationTests` (`swift test --filter GherkinIntegrationTests` with `PICKLE_REPORT`) — so it shows real Given/When/Then scenarios across tags, doc strings, a data table, and a grouped scenario outline. The pipeline also screenshots the report in three palettes (`report.png`, `report-nord.png`, `report-gruvbox.png`, via `?theme=`) — those are the re-skinned images the README links, never committed, so they always match the current report.
+A live report + living spec, regenerated on every push, is published to GitHub Pages: **[alleato-llc.github.io/pickle-kit](https://alleato-llc.github.io/pickle-kit/)** (the spec is the front door; the report is one click away). It's PickleKit's own cucumber feature fixtures — run in one deterministic pass by `GherkinIntegrationTests` (`swift test --filter GherkinIntegrationTests` with `PICKLE_REPORT`) — so it shows real Given/When/Then scenarios across tags, doc strings, a data table, and a grouped scenario outline. The pipeline also screenshots the report in all four palettes (`report.png`, `report-dark.png`, `report-nord.png`, `report-gruvbox.png`, via `?theme=`) — those are the re-skinned images the README links, never committed, so they always match the current report.
 
 ## Configuration
 
