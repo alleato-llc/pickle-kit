@@ -1,7 +1,7 @@
 # PickleKit
 
-[![CI](https://github.com/nycjv321/pickle-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/nycjv321/pickle-kit/actions/workflows/ci.yml)
-[![Platform](https://img.shields.io/badge/platform-Apple%20Platforms-blue)](https://github.com/nycjv321/pickle-kit)
+[![CI](https://github.com/alleato-llc/pickle-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/alleato-llc/pickle-kit/actions/workflows/ci.yml)
+[![Platform](https://img.shields.io/badge/platform-Apple%20Platforms-blue)](https://github.com/alleato-llc/pickle-kit)
 [![Swift](https://img.shields.io/badge/swift-6.2%2B-orange)](https://swift.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
@@ -21,7 +21,7 @@ Add PickleKit to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/nycjv321/pickle-kit.git", from: "0.1.0"),
+    .package(url: "https://github.com/alleato-llc/pickle-kit.git", from: "0.1.0"),
 ],
 targets: [
     .testTarget(
@@ -176,13 +176,19 @@ Generate Cucumber-style HTML reports with per-step results, timing, and status f
 PICKLE_REPORT=1 swift test
 ```
 
-The report includes summary counts, collapsible per-feature sections, **Scenario Outline grouping** (an outline's examples fold under one header), per-step timing and error details, interactive filtering, and a sticky outline sidebar. It's a single self-contained HTML file and is **themeable** — light/dark out of the box, following the system preference and remembering your choice.
+The report includes summary counts, collapsible per-feature sections, **Scenario Outline grouping** (an outline's examples fold under one header), per-step timing and error details, interactive filtering, and a sticky outline sidebar. It's a single self-contained HTML file.
 
 **[See a live report + living spec ↗](https://alleato-llc.github.io/pickle-kit/)** — regenerated on every push from PickleKit's own cucumber feature fixtures (arithmetic, a shopping cart, tags, doc strings, a data table, and a grouped scenario outline), run by its integration suite.
 
-[![PickleKit HTML test report](https://alleato-llc.github.io/pickle-kit/screenshots/report.png)](https://alleato-llc.github.io/pickle-kit/report.html)
+### Themeable
 
-See [Report Configuration](docs/REPORTING.md) for customization, theming, xcodebuild integration, and programmatic generation.
+Every colour is a CSS custom property, so re-skinning the report is one block. It ships **four palettes** — `light` (Solarized) and `dark` (Dracula) are the pair the ◐ toggle and your OS preference choose between, plus `nord` and `gruvbox` to show the rest. Any page can be deep-linked to a palette with `?theme=<id>`. Here is the *same report*, re-skinned — click one to open it live:
+
+| [Solarized (light)](https://alleato-llc.github.io/pickle-kit/report.html) | [Nord](https://alleato-llc.github.io/pickle-kit/report.html?theme=nord) | [Gruvbox](https://alleato-llc.github.io/pickle-kit/report.html?theme=gruvbox) |
+|:---:|:---:|:---:|
+| [![Solarized](https://alleato-llc.github.io/pickle-kit/screenshots/report.png)](https://alleato-llc.github.io/pickle-kit/report.html) | [![Nord](https://alleato-llc.github.io/pickle-kit/screenshots/report-nord.png)](https://alleato-llc.github.io/pickle-kit/report.html?theme=nord) | [![Gruvbox](https://alleato-llc.github.io/pickle-kit/screenshots/report-gruvbox.png)](https://alleato-llc.github.io/pickle-kit/report.html?theme=gruvbox) |
+
+To match your own design system, copy its colour tokens into a new theme — see [Report Configuration](docs/REPORTING.md) for the palette tokens, `?theme=` deep-linking, xcodebuild integration, and programmatic generation.
 
 ## Example: TodoApp with XCUITest
 

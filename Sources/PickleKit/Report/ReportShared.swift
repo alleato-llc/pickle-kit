@@ -22,7 +22,10 @@ enum ReportShared {
         """
         <script>
         (function () {
-          var t = localStorage.getItem('pickle-theme');
+          // ?theme=<id> wins (the showcase deep-links to a named palette), then
+          // a remembered choice, then the OS preference. No flash either way.
+          var forced = new URLSearchParams(location.search).get('theme');
+          var t = forced || localStorage.getItem('pickle-theme');
           if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
           document.documentElement.setAttribute('data-theme', t);
           if (localStorage.getItem('pickle-rail') === 'collapsed')
@@ -67,26 +70,69 @@ enum ReportShared {
         """
     }
 
-    /// The palette (Solarized Light / Dracula) plus the chrome both pages
-    /// share: reset, body, the theme toggle, tags, links, and the summary
-    /// cards + progress bars. Component-specific CSS lives in each generator.
-    /// Returned WITHOUT a <style> wrapper; generators wrap it with their own.
+    /// A named report palette — one block of CSS custom properties selected by
+    /// the `data-theme` attribute. `light`/`dark` are the system pair the ◐
+    /// toggle and OS preference choose between; the others are reachable with
+    /// `?theme=<id>` (the README hosts them as a re-skinning showcase). Adding
+    /// a theme is just appending an entry here — every component reads the
+    /// tokens, so nothing else changes.
+    struct ReportTheme: Sendable {
+        let id: String        // the data-theme value
+        let label: String     // human name, for docs and the showcase
+        let variables: String // the custom-property body (no selector)
+    }
+
+    /// The built-in palettes. Order is the showcase order. Light is also bound
+    /// to the bare `:root` so a page with no data-theme yet paints light.
+    static let themes: [ReportTheme] = [
+        ReportTheme(id: "light", label: "Solarized Light", variables: """
+              --bg: #fdf6e3; --surface: #eee8d5; --text: #073642;
+              --muted: #657b83; --faint: #93a1a1; --accent: #268bd2;
+              --error: #dc322f; --border: rgba(7,54,66,0.12); --shadow: rgba(7,54,66,0.06);
+              --passed: #2aa198; --failed: #dc322f; --skipped: #93a1a1; --undefined: #b58900;
+            """),
+        ReportTheme(id: "dark", label: "Dracula", variables: """
+              --bg: #282a36; --surface: #343746; --text: #f8f8f2;
+              --muted: #bd93f9; --faint: #6272a4; --accent: #ff79c6;
+              --error: #ff5555; --border: rgba(248,248,242,0.1); --shadow: rgba(0,0,0,0.3);
+              --passed: #50fa7b; --failed: #ff5555; --skipped: #6272a4; --undefined: #ffb86c;
+            """),
+        ReportTheme(id: "nord", label: "Nord", variables: """
+              --bg: #2e3440; --surface: #3b4252; --text: #eceff4;
+              --muted: #81a1c1; --faint: #4c566a; --accent: #88c0d0;
+              --error: #bf616a; --border: rgba(236,239,244,0.1); --shadow: rgba(0,0,0,0.3);
+              --passed: #a3be8c; --failed: #bf616a; --skipped: #4c566a; --undefined: #ebcb8b;
+            """),
+        ReportTheme(id: "gruvbox", label: "Gruvbox", variables: """
+              --bg: #282828; --surface: #3c3836; --text: #ebdbb2;
+              --muted: #a89984; --faint: #665c54; --accent: #fe8019;
+              --error: #fb4934; --border: rgba(235,219,178,0.1); --shadow: rgba(0,0,0,0.3);
+              --passed: #b8bb26; --failed: #fb4934; --skipped: #665c54; --undefined: #fabd2f;
+            """),
+    ]
+
+    /// Render every theme to its `:root[data-theme="…"]` block (light also under
+    /// bare `:root`). Used inside `commonCSS()`.
+    static func paletteCSS() -> String {
+        themes.map { theme in
+            let selector = theme.id == "light"
+                ? ":root, :root[data-theme=\"light\"]"
+                : ":root[data-theme=\"\(theme.id)\"]"
+            return "\(selector) {\n\(theme.variables)\n}"
+        }.joined(separator: "\n")
+    }
+
+    /// The palettes plus the chrome both pages share: reset, body, the theme
+    /// toggle, tags, links, and the summary cards + progress bars.
+    /// Component-specific CSS lives in each generator. Returned WITHOUT a
+    /// <style> wrapper; generators wrap it with their own.
     static func commonCSS() -> String {
         """
-        /* Palette: Solarized Light / Dracula — the Soroban site's tokens.
-           data-theme is set before paint by the head script. */
-        :root, :root[data-theme="light"] {
-          --bg: #fdf6e3; --surface: #eee8d5; --text: #073642;
-          --muted: #657b83; --faint: #93a1a1; --accent: #268bd2;
-          --error: #dc322f; --border: rgba(7,54,66,0.12); --shadow: rgba(7,54,66,0.06);
-          --passed: #2aa198; --failed: #dc322f; --skipped: #93a1a1; --undefined: #b58900;
-        }
-        :root[data-theme="dark"] {
-          --bg: #282a36; --surface: #343746; --text: #f8f8f2;
-          --muted: #bd93f9; --faint: #6272a4; --accent: #ff79c6;
-          --error: #ff5555; --border: rgba(248,248,242,0.1); --shadow: rgba(0,0,0,0.3);
-          --passed: #50fa7b; --failed: #ff5555; --skipped: #6272a4; --undefined: #ffb86c;
-        }
+        /* Palettes: several named themes. light/dark are the ◐-toggle pair (OS
+           preference picks the first paint); the rest are reachable with
+           ?theme=<id>. data-theme is set before paint by the head script.
+           Re-skinning is one block — see ReportShared.themes. */
+        \(paletteCSS())
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; transition: background 0.2s ease, color 0.2s ease; -webkit-font-smoothing: antialiased; }
         a { color: var(--accent); text-decoration: none; }

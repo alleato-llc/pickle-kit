@@ -412,6 +412,22 @@ import Foundation
         #expect(html.contains("prefers-color-scheme: dark"))
     }
 
+    @Test func shipsExtraNamedThemesReachableByQueryParam() {
+        let html = generator.generate(from: makeSampleResult())
+        // Beyond the light/dark pair, two more palettes ship so a generated
+        // report can demonstrate that re-skinning is one CSS block.
+        #expect(html.contains(":root[data-theme=\"nord\"]"))
+        #expect(html.contains(":root[data-theme=\"gruvbox\"]"))
+        #expect(html.contains("#2e3440")) // Nord polar-night base
+        #expect(html.contains("#fe8019")) // Gruvbox orange accent
+        // Every built-in theme emits a block, and the showcase deep-links via
+        // ?theme=<id>, which the pre-paint script honors over the OS default.
+        for theme in ReportShared.themes {
+            #expect(html.contains("data-theme=\"\(theme.id)\""))
+        }
+        #expect(html.contains("URLSearchParams(location.search).get('theme')"))
+    }
+
     @Test func scenarioAndFeatureAnchorsAreUnique() {
         // Two features, two scenarios each → distinct, stable anchor ids.
         let feature1 = FeatureResult(featureName: "F1", scenarioResults: [

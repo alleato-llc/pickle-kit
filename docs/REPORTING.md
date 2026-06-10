@@ -17,17 +17,18 @@ A `ReportSuite` renders one run as a cohesive pair — the **report** (this audi
 
 ## Theming
 
-The report is themeable and ships **light** and **dark** themes out of the box, using the same palette as the [Soroban](https://github.com/alleato-llc/soroban) landing page — Solarized Light and Dracula — so a generated report can be dropped straight onto a site.
+The report is themeable and ships **four palettes** out of the box: `light` (Solarized Light) and `dark` (Dracula) — the same palette as the [Soroban](https://github.com/alleato-llc/soroban) landing page, so a generated report can be dropped straight onto a site — plus `nord` and `gruvbox`, included to show that re-skinning is one block.
 
-- **How it's switched:** a `data-theme` attribute (`"light"` / `"dark"`) on `<html>` selects a block of CSS custom properties. The **◐** button in the report header toggles it.
-- **First paint:** an inline `<script>` in `<head>` runs before render — it reads a remembered choice from `localStorage` (`pickle-theme`), falling back to the OS preference via `prefers-color-scheme`. So there's no flash, and a returning viewer keeps their choice.
-- **The palette** lives in `HTMLReportGenerator.generateCSS()` as two `:root[data-theme=…]` blocks of variables (`--bg`, `--surface`, `--text`, `--muted`, `--faint`, `--accent`, `--error`, `--border`, `--shadow`, and status colours `--passed`/`--failed`/`--skipped`/`--undefined`). **To re-skin the report, change those variables** — everything else (cards, badges, progress bars, the sidebar) is expressed in terms of them. To match a different design system, copy that system's color tokens into the two blocks.
+- **How it's switched:** a `data-theme` attribute on `<html>` selects a block of CSS custom properties. The **◐** button in the report header toggles between `light` and `dark`.
+- **Deep-linking a palette:** append `?theme=<id>` to any report or spec URL (`report.html?theme=nord`). The pre-paint script honors it over the remembered/OS choice, so a hosted page can be pinned to a specific look — that's how the README's re-skinned screenshots are produced.
+- **First paint:** an inline `<script>` in `<head>` runs before render — it resolves the theme as `?theme=` → a remembered choice in `localStorage` (`pickle-theme`) → the OS preference via `prefers-color-scheme`. So there's no flash, and a returning viewer keeps their choice.
+- **The palettes** live in `ReportShared.themes` as a list of `ReportTheme` values; `paletteCSS()` renders each to a `:root[data-theme="…"]` block of variables (`--bg`, `--surface`, `--text`, `--muted`, `--faint`, `--accent`, `--error`, `--border`, `--shadow`, and status colours `--passed`/`--failed`/`--skipped`/`--undefined`). **To add a theme, append one entry** — everything else (cards, badges, progress bars, the sidebar) is expressed in terms of those tokens, so nothing else changes. To match a different design system, copy its colour tokens into a new `ReportTheme`.
 
 > The report and spec HTML is assembled with [Kumi](https://github.com/alleato-llc/kumi), a small dependency-free HTML builder — so the markup is auto-escaped and the structure is built as a node tree rather than concatenated strings.
 
 ## Hosted demo
 
-A live report + living spec, regenerated on every push, is published to GitHub Pages: **[alleato-llc.github.io/pickle-kit](https://alleato-llc.github.io/pickle-kit/)** (the spec is the front door; the report is one click away). It's PickleKit's own cucumber feature fixtures — run in one deterministic pass by `GherkinIntegrationTests` (`swift test --filter GherkinIntegrationTests` with `PICKLE_REPORT`) — so it shows real Given/When/Then scenarios across tags, doc strings, a data table, and a grouped scenario outline.
+A live report + living spec, regenerated on every push, is published to GitHub Pages: **[alleato-llc.github.io/pickle-kit](https://alleato-llc.github.io/pickle-kit/)** (the spec is the front door; the report is one click away). It's PickleKit's own cucumber feature fixtures — run in one deterministic pass by `GherkinIntegrationTests` (`swift test --filter GherkinIntegrationTests` with `PICKLE_REPORT`) — so it shows real Given/When/Then scenarios across tags, doc strings, a data table, and a grouped scenario outline. The pipeline also screenshots the report in three palettes (`report.png`, `report-nord.png`, `report-gruvbox.png`, via `?theme=`) — those are the re-skinned images the README links, never committed, so they always match the current report.
 
 ## Configuration
 

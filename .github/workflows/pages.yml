@@ -58,11 +58,18 @@ jobs:
             || python3 -m pip install --quiet pillow
           CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
           mkdir -p /tmp/shots _site/screenshots
-          for page in index report; do
+          # The living spec, plus the report in three of its built-in palettes
+          # (?theme=<id>, honored by the pre-paint script) so the README can
+          # show the same report re-skinned — the themeability, made visible.
+          shoot() {
             "$CHROME" --headless=new --disable-gpu --hide-scrollbars \
               --force-device-scale-factor=2 --window-size=1100,3200 \
-              --screenshot="/tmp/shots/$page.png" "file://$PWD/_site/$page.html"
-          done
+              --screenshot="/tmp/shots/$1.png" "file://$PWD/_site/$2"
+          }
+          shoot index         "index.html"
+          shoot report         "report.html"
+          shoot report-nord    "report.html?theme=nord"
+          shoot report-gruvbox "report.html?theme=gruvbox"
           python3 .github/scripts/trim.py /tmp/shots _site/screenshots
 
       - uses: actions/upload-pages-artifact@v3
