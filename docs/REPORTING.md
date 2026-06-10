@@ -27,7 +27,7 @@ The report is themeable and ships **light** and **dark** themes out of the box, 
 
 ## Hosted demo
 
-A live report + living spec, regenerated on every push, is published to GitHub Pages: **[alleato-llc.github.io/pickle-kit](https://alleato-llc.github.io/pickle-kit/)** (the spec is the front door; the report is one click away). It's PickleKit's own dogfooded scenarios, so it shows real passing, failing, skipped, tagged, and grouped-outline cases.
+A live report + living spec, regenerated on every push, is published to GitHub Pages: **[alleato-llc.github.io/pickle-kit](https://alleato-llc.github.io/pickle-kit/)** (the spec is the front door; the report is one click away). It's PickleKit's own cucumber feature fixtures — run in one deterministic pass by `GherkinIntegrationTests` (`swift test --filter GherkinIntegrationTests` with `PICKLE_REPORT`) — so it shows real Given/When/Then scenarios across tags, doc strings, a data table, and a grouped scenario outline.
 
 ## Configuration
 

@@ -32,16 +32,16 @@ jobs:
       - name: Generate spec + report
         run: |
           mkdir -p _site
-          # The report is a side effect of running the scenarios — this is the
-          # showcase, not the test gate (ci.yml gates the suite). The dogfooded
-          # run includes intentional failures and some env-var-parallel tests,
-          # so don't stop on a non-zero status; instead require that the report
-          # and spec were actually written.
+          # Generate from PickleKit's OWN cucumber scenarios — the feature
+          # fixtures, run by GherkinIntegrationTests in one deterministic
+          # parameterized pass (not a side effect of the whole 253-test run, so
+          # the report is exactly our cucumber tests). They pass, so this gates
+          # honestly: no `|| true`, and a real failure here fails the workflow.
           PICKLE_REPORT=1 \
             PICKLE_REPORT_PATH="$PWD/_site/report.html" \
             PICKLE_SPEC_PATH="$PWD/_site/index.html" \
             PICKLE_SPEC_TITLE="PickleKit — Living Specification" \
-            swift test || true
+            swift test --filter GherkinIntegrationTests
           test -s _site/report.html && test -s _site/index.html
 
       - name: Screenshot
