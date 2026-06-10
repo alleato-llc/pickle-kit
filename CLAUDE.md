@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-PickleKit is a standalone Swift Cucumber/BDD testing framework. It provides a Gherkin parser, step registry, scenario runner, and bridges for both Swift Testing and XCTest. Its **one dependency** is [Kumi](https://github.com/alleato-llc/kumi), a tiny dependency-free HTML builder used to assemble the report/spec markup. Requires Swift 6.2+ (swift-tools-version 6.2).
+PickleKit is a standalone Swift Cucumber/BDD testing framework. It provides a Gherkin parser, step registry, scenario runner, and bridges for both Swift Testing and XCTest. The report/spec markup is assembled with [Kumi](https://github.com/alleato-llc/kumi), a tiny dependency-free HTML builder. Requires Swift 6.2+ (swift-tools-version 6.2).
 
 ## Architecture
 
@@ -37,7 +37,7 @@ Sources/PickleKit/
 
 ### Key Design Decisions
 
-- **One dependency** — Foundation, Testing (Swift Testing), and XCTest (implicit for test targets), plus [Kumi](https://github.com/alleato-llc/kumi), a tiny HTML builder. The report/spec generators assemble markup as a Kumi node tree (auto-escaped, auto-closed) rather than concatenated strings. Because the XCTest bridge lives in the same module, the generators can't be used from a plain executable (it'd fail to load `libXCTestSwiftSupport`) — generate reports via `swift test` + `PICKLE_REPORT`, which is the supported path.
+- **Dependencies** — Foundation, Testing (Swift Testing), XCTest (implicit for test targets), and [Kumi](https://github.com/alleato-llc/kumi), a tiny HTML builder. The report/spec generators assemble markup as a Kumi node tree (auto-escaped, auto-closed) rather than concatenated strings. Because the XCTest bridge lives in the same module, the generators can't be used from a plain executable (it'd fail to load `libXCTestSwiftSupport`) — generate reports via `swift test` + `PICKLE_REPORT`, which is the supported path.
 - **Scenario Outline grouping in reports** — `OutlineExpander` tags each expanded `Scenario` with `outlineName`/`exampleLabel`, threaded into `ScenarioResult`. The report/spec fold consecutive same-outline cases under one collapsible header (name + `outline · N`), via `ReportShared.segments(_:)`. Collapsed by default; a group with a failure opens; per-scenario anchors are preserved. `.github/workflows/pages.yml` generates the report+spec on every push from the cucumber feature fixtures — run by `GherkinIntegrationTests` in one deterministic pass (`swift test --filter GherkinIntegrationTests` with `PICKLE_REPORT`), NOT as a side effect of the whole 253-test suite (which would capture an arbitrary auto-collected slice). Those scenarios all pass, so the step is honestly gated (no `|| true`). It then screenshots the pages and deploys to GitHub Pages ([alleato-llc.github.io/pickle-kit](https://alleato-llc.github.io/pickle-kit/)); the README's report screenshot is produced there, never committed.
 - **All AST types are `Sendable` and `Equatable`** — value types throughout
 - **`StepRegistry` is instance-based** (not singleton) for testability

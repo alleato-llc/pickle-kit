@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-blueviolet)](https://claude.ai)
 
-A standalone Swift Cucumber/BDD testing framework with zero external dependencies. Parse Gherkin `.feature` files, register step definitions with regex patterns, and run scenarios — integrated with both Swift Testing and XCTest.
+A standalone Swift Cucumber/BDD testing framework. Parse Gherkin `.feature` files, register step definitions with regex patterns, and run scenarios — integrated with both Swift Testing and XCTest.
 
 ## Requirements
 
@@ -152,7 +152,7 @@ Each scenario appears as a separate test in Xcode's test navigator.
 
 ## Why PickleKit
 
-Before PickleKit, using Cucumber-style BDD in Swift required external toolchains — Ruby (via Cucumber), Java (via Karate), or CocoaPods-based frameworks. PickleKit provides a zero-dependency Swift-native Cucumber framework that integrates directly with Swift Testing and XCTest. No Gemfile, no Podfile, no build plugins — just a Swift package dependency.
+Before PickleKit, using Cucumber-style BDD in Swift required external toolchains — Ruby (via Cucumber), Java (via Karate), or CocoaPods-based frameworks. PickleKit is a Swift-native Cucumber framework that integrates directly with Swift Testing and XCTest. No Gemfile, no Podfile, no build plugins — just a Swift package.
 
 ## Gherkin Support
 

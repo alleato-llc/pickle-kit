@@ -23,7 +23,7 @@ The report is themeable and ships **light** and **dark** themes out of the box, 
 - **First paint:** an inline `<script>` in `<head>` runs before render — it reads a remembered choice from `localStorage` (`pickle-theme`), falling back to the OS preference via `prefers-color-scheme`. So there's no flash, and a returning viewer keeps their choice.
 - **The palette** lives in `HTMLReportGenerator.generateCSS()` as two `:root[data-theme=…]` blocks of variables (`--bg`, `--surface`, `--text`, `--muted`, `--faint`, `--accent`, `--error`, `--border`, `--shadow`, and status colours `--passed`/`--failed`/`--skipped`/`--undefined`). **To re-skin the report, change those variables** — everything else (cards, badges, progress bars, the sidebar) is expressed in terms of them. To match a different design system, copy that system's color tokens into the two blocks.
 
-> The report and spec HTML is assembled with [Kumi](https://github.com/alleato-llc/kumi), a small dependency-free HTML builder — so the markup is auto-escaped and the structure is built as a node tree rather than concatenated strings. Kumi is PickleKit's one dependency.
+> The report and spec HTML is assembled with [Kumi](https://github.com/alleato-llc/kumi), a small dependency-free HTML builder — so the markup is auto-escaped and the structure is built as a node tree rather than concatenated strings.
 
 ## Hosted demo
 

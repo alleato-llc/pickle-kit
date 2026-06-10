@@ -8,6 +8,14 @@ name: Report → GitHub Pages
 on:
   push:
     branches: [main]
+    # Only rebuild when something that affects the report changes — not on
+    # README/docs edits (they don't alter the generated pages or screenshots).
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - ".github/workflows/pages.yml"
+      - ".github/scripts/**"
   workflow_dispatch:
 
 permissions:
