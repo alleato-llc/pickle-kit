@@ -15,7 +15,7 @@ let package = Package(
     dependencies: [
         // Kumi (組) — the report/spec HTML is assembled with this owned,
         // zero-dependency builder instead of hand-written tag strings.
-        .package(url: "https://github.com/alleato-llc/kumi.git", from: "0.1.0"),
+        .package(url: "https://github.com/alleato-llc/kumi.git", from: "0.4.0"),
     ],
     targets: [
         .target(

@@ -93,51 +93,50 @@ public struct SpecPageGenerator: Sendable {
     }
 
     private func generateFeatures(from result: TestRunResult) -> Node {
-        var sections: [Node] = []
-        for (i, feature) in result.featureResults.enumerated() {
+        .fragment(result.featureResults.enumerated().map { i, feature in
             let verified = feature.allPassed
-            var children: [Node] = [
-                .tag("div", [.class("feature-head")], [
-                    .tag("h2", [], text: feature.featureName),
-                    .tag("span", [.class("verified \(verified ? "ok" : "bad")")],
-                         text: verified ? "\u{2713} \(feature.scenarioResults.count) examples"
-                                        : "\u{2717} \(feature.failedCount) failing"),
-                ]),
-            ]
-            if !feature.tags.isEmpty {
-                children.append(.tag("div", [.class("tags")],
-                    feature.tags.map { .tag("span", [.class("tag")], text: "@\($0)") }))
-            }
-            if !feature.description.isEmpty {
-                children.append(.tag("p", [.class("narrative")], text: feature.description))
-            }
-
-            // Consecutive examples from one Scenario Outline collapse under a
-            // single header; standalone scenarios render flat.
-            for segment in ReportShared.segments(feature.scenarioResults) {
-                switch segment {
-                case .single(let j, let scenario):
-                    children.append(scenarioNode(featureIndex: i, scenarioIndex: j, scenario: scenario,
-                                                 displayName: scenario.scenarioName))
-                case .outline(let name, let cases):
-                    let status = ReportShared.groupStatus(cases)
-                    // Collapsed by default — the header (name + count) is the summary.
-                    children.append(.tag("details", [.class("outline-group"), .data("status", status)], [
-                        .tag("summary", [], [
-                            .tag("span", [.class("outline-name")], text: name),
-                            .tag("span", [.class("outline-badge")], text: "outline \u{00B7} \(cases.count)"),
-                        ]),
-                        .tag("div", [.class("outline-cases")], cases.map {
-                            scenarioNode(featureIndex: i, scenarioIndex: $0.index, scenario: $0.scenario,
-                                         displayName: $0.scenario.exampleLabel ?? $0.scenario.scenarioName)
-                        }),
-                    ]))
+            return Node.section(.class("spec-feature"), .id(ReportShared.featureAnchor(i))) {
+                Node.div(.class("feature-head")) {
+                    Node.h2(text: feature.featureName)
+                    Node.span([.class("verified \(verified ? "ok" : "bad")")],
+                              text: verified ? "\u{2713} \(feature.scenarioResults.count) examples"
+                                             : "\u{2717} \(feature.failedCount) failing")
+                }
+                if !feature.tags.isEmpty {
+                    Node.div(.class("tags")) {
+                        feature.tags.map { Node.span([.class("tag")], text: "@\($0)") }
+                    }
+                }
+                if !feature.description.isEmpty {
+                    Node.p([.class("narrative")], text: feature.description)
+                }
+                // Consecutive examples from one Scenario Outline collapse under a
+                // single header; standalone scenarios render flat.
+                for segment in ReportShared.segments(feature.scenarioResults) {
+                    switch segment {
+                    case .single(let j, let scenario):
+                        scenarioNode(featureIndex: i, scenarioIndex: j, scenario: scenario,
+                                     displayName: scenario.scenarioName)
+                    case .outline(let name, let cases):
+                        let status = ReportShared.groupStatus(cases)
+                        // Collapsed by default — the header (name + count) is the summary.
+                        Node.details(.class("outline-group"), .data("status", status)) {
+                            Node.summary {
+                                Node.span([.class("outline-name")], text: name)
+                                Node.span([.class("outline-badge")], text: "outline \u{00B7} \(cases.count)")
+                            }
+                            Node.div(.class("outline-cases")) {
+                                cases.map {
+                                    scenarioNode(featureIndex: i, scenarioIndex: $0.index,
+                                                 scenario: $0.scenario,
+                                                 displayName: $0.scenario.exampleLabel ?? $0.scenario.scenarioName)
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            sections.append(.tag("section", [.class("spec-feature"),
-                                             .id(ReportShared.featureAnchor(i))], children))
-        }
-        return .fragment(sections)
+        })
     }
 
     /// One scenario's `<details>` block. `displayName` lets a grouped outline
@@ -147,30 +146,30 @@ public struct SpecPageGenerator: Sendable {
         let status = scenario.skipped ? "skipped" : (scenario.passed ? "passed" : "failed")
         let mark = scenario.skipped ? "\u{25CB}" : (scenario.passed ? "\u{2713}" : "\u{2717}")
 
-        var summary: [Node] = [
-            .tag("span", [.class("mark \(status)")], text: mark),
-            .tag("span", [.class("scenario-name")], text: displayName),
-        ]
-        if let reportLink {
-            summary.append(.tag("a", [.class("run-link"),
-                                      .href("\(reportLink)#\(ReportShared.scenarioAnchor(i, j))"),
-                                      .attr("title", "See this run in the report")], text: "run \u{2197}"))
-        }
-
-        let steps: [Node] = scenario.stepResults.isEmpty
-            ? [.tag("div", [.class("step muted")], text: "(no steps recorded)")]
-            : scenario.stepResults.map { step in
-                .tag("div", [.class("step")], [
-                    .tag("span", [.class("kw")], text: step.keyword),
-                    .text(" "),
-                    .tag("span", [.class("txt")], text: step.text),
-                ])
+        return Node.details(.class("scenario \(status)")) {
+            Node.summary {
+                Node.span([.class("mark \(status)")], text: mark)
+                Node.span([.class("scenario-name")], text: displayName)
+                if let reportLink {
+                    Node.a([.class("run-link"),
+                            .href("\(reportLink)#\(ReportShared.scenarioAnchor(i, j))"),
+                            .attr("title", "See this run in the report")], text: "run \u{2197}")
+                }
             }
-
-        return .tag("details", [.class("scenario \(status)")], [
-            .tag("summary", [], summary),
-            .tag("div", [.class("steps")], steps),
-        ])
+            Node.div(.class("steps")) {
+                if scenario.stepResults.isEmpty {
+                    Node.div([.class("step muted")], text: "(no steps recorded)")
+                } else {
+                    scenario.stepResults.map { step in
+                        Node.div([.class("step")], [
+                            .tag("span", [.class("kw")], text: step.keyword),
+                            .text(" "),
+                            .tag("span", [.class("txt")], text: step.text),
+                        ])
+                    }
+                }
+            }
+        }
     }
 
     private func generateCSS() -> String {

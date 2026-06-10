@@ -136,8 +136,7 @@ public struct HTMLReportGenerator: Sendable {
     }
 
     private func generateFeatures(from result: TestRunResult) -> Node {
-        var features: [Node] = []
-        for (i, feature) in result.featureResults.enumerated() {
+        .fragment(result.featureResults.enumerated().map { i, feature in
             let featureStatus: String
             if feature.failedCount > 0 {
                 featureStatus = "failed"
@@ -147,51 +146,49 @@ public struct HTMLReportGenerator: Sendable {
                 featureStatus = "passed"
             }
 
-            var title: [Node] = [.tag("h2", [], text: feature.featureName)]
-            for tag in feature.tags { title.append(.tag("span", [.class("tag")], text: "@\(tag)")) }
-
             let executedCount = feature.scenarioResults.count - feature.skippedCount
             var stats = "\(feature.passedCount)/\(executedCount) scenarios passed"
             if feature.skippedCount > 0 { stats += ", \(feature.skippedCount) skipped" }
             stats += " \u{00B7} \(ReportShared.formatDuration(feature.duration))"
 
-            var children: [Node] = [
-                .tag("summary", [.class("feature-header")], [
-                    .tag("div", [.class("feature-title")], title),
+            return Node.details(.class("feature"), .id(ReportShared.featureAnchor(i)),
+                                .data("status", featureStatus), .flag("open")) {
+                Node.summary([.class("feature-header")], [
+                    .tag("div", [.class("feature-title")],
+                         [.tag("h2", [], text: feature.featureName)]
+                            + feature.tags.map { .tag("span", [.class("tag")], text: "@\($0)") }),
                     .tag("span", [.class("feature-stats")], text: stats),
-                ]),
-            ]
-
-            // Outline examples collapse under one group header; standalone
-            // scenarios render flat. Per-scenario anchors/ids are unchanged.
-            for segment in ReportShared.segments(feature.scenarioResults) {
-                switch segment {
-                case .single(let j, let scenario):
-                    children.append(scenarioNode(featureIndex: i, scenarioIndex: j, scenario: scenario,
-                                                 displayName: scenario.scenarioName))
-                case .outline(let name, let cases):
-                    let status = ReportShared.groupStatus(cases)
-                    // Collapsed by default, but a group with a failure opens so
-                    // the failing example stays visible (like a failed scenario).
-                    var attributes: [Attribute] = [.class("outline-group"), .data("status", status)]
-                    if status == "failed" { attributes.append(.flag("open")) }
-                    children.append(.tag("details", attributes, [
-                        .tag("summary", [], [
-                            .tag("span", [.class("outline-name")], text: name),
-                            .tag("span", [.class("outline-badge")], text: "outline \u{00B7} \(cases.count)"),
-                            .tag("span", [.class("status-badge status-\(status)")], text: status),
-                        ]),
-                        .tag("div", [.class("outline-cases")], cases.map {
-                            scenarioNode(featureIndex: i, scenarioIndex: $0.index, scenario: $0.scenario,
-                                         displayName: $0.scenario.exampleLabel ?? $0.scenario.scenarioName)
-                        }),
-                    ]))
+                ])
+                // Outline examples collapse under one group header; standalone
+                // scenarios render flat. Per-scenario anchors/ids are unchanged.
+                for segment in ReportShared.segments(feature.scenarioResults) {
+                    switch segment {
+                    case .single(let j, let scenario):
+                        scenarioNode(featureIndex: i, scenarioIndex: j, scenario: scenario,
+                                     displayName: scenario.scenarioName)
+                    case .outline(let name, let cases):
+                        let status = ReportShared.groupStatus(cases)
+                        // Collapsed by default, but a group with a failure opens
+                        // so the failing example stays visible.
+                        Node.details(.class("outline-group"), .data("status", status),
+                                     .flag("open", if: status == "failed")) {
+                            Node.summary {
+                                Node.span([.class("outline-name")], text: name)
+                                Node.span([.class("outline-badge")], text: "outline \u{00B7} \(cases.count)")
+                                Node.span([.class("status-badge status-\(status)")], text: status)
+                            }
+                            Node.div(.class("outline-cases")) {
+                                cases.map {
+                                    scenarioNode(featureIndex: i, scenarioIndex: $0.index,
+                                                 scenario: $0.scenario,
+                                                 displayName: $0.scenario.exampleLabel ?? $0.scenario.scenarioName)
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            features.append(.tag("details", [.class("feature"), .id(ReportShared.featureAnchor(i)),
-                                            .data("status", featureStatus), .flag("open")], children))
-        }
-        return .fragment(features)
+        })
     }
 
     /// One scenario's `<details>` block. `displayName` lets a grouped outline
@@ -199,38 +196,31 @@ public struct HTMLReportGenerator: Sendable {
     private func scenarioNode(featureIndex i: Int, scenarioIndex j: Int,
                               scenario: ScenarioResult, displayName: String) -> Node {
         let statusClass = scenario.skipped ? "skipped" : (scenario.passed ? "passed" : "failed")
-        var attributes: [Attribute] = [.class("scenario"), .id(ReportShared.scenarioAnchor(i, j)),
-                                       .data("status", statusClass)]
-        if !scenario.passed && !scenario.skipped { attributes.append(.flag("open")) }
 
-        var summary: [Node] = [
-            .tag("span", [.class("scenario-name")], text: displayName),
-            .tag("span", [.class("status-badge status-\(statusClass)")], text: statusClass),
-        ]
-        for tag in scenario.tags { summary.append(.tag("span", [.class("tag")], text: "@\(tag)")) }
-        summary.append(.tag("span", [.class("scenario-duration")],
-                            text: ReportShared.formatDuration(scenario.duration)))
-
-        var steps: [Node] = []
-        for stepResult in scenario.stepResults {
-            var row: [Node] = [
-                .tag("span", [.class("step-keyword")], text: stepResult.keyword),
-                .tag("span", [.class("step-text")], text: stepResult.text),
-            ]
-            if stepResult.duration > 0 {
-                row.append(.tag("span", [.class("step-duration")],
-                                text: ReportShared.formatDuration(stepResult.duration)))
+        return Node.details(.class("scenario"), .id(ReportShared.scenarioAnchor(i, j)),
+                            .data("status", statusClass),
+                            .flag("open", if: !scenario.passed && !scenario.skipped)) {
+            Node.summary {
+                Node.span([.class("scenario-name")], text: displayName)
+                Node.span([.class("status-badge status-\(statusClass)")], text: statusClass)
+                for tag in scenario.tags { Node.span([.class("tag")], text: "@\(tag)") }
+                Node.span([.class("scenario-duration")], text: ReportShared.formatDuration(scenario.duration))
             }
-            steps.append(.tag("div", [.class("step-row \(stepResult.status.rawValue)")], row))
-            if let error = stepResult.error {
-                steps.append(.tag("div", [.class("step-error")], text: error))
+            Node.div(.class("steps")) {
+                for step in scenario.stepResults {
+                    Node.div([.class("step-row \(step.status.rawValue)")],
+                             [.tag("span", [.class("step-keyword")], text: step.keyword),
+                              .tag("span", [.class("step-text")], text: step.text)]
+                                + (step.duration > 0
+                                   ? [.tag("span", [.class("step-duration")],
+                                          text: ReportShared.formatDuration(step.duration))]
+                                   : []))
+                    if let error = step.error {
+                        Node.div([.class("step-error")], text: error)
+                    }
+                }
             }
         }
-
-        return .tag("details", attributes, [
-            .tag("summary", [], summary),
-            .tag("div", [.class("steps")], steps),
-        ])
     }
 
     private func generateJS() -> String {
