@@ -101,7 +101,23 @@ public struct GherkinTestScenario: Sendable, CustomStringConvertible {
 
     /// Whether HTML report generation is enabled. Reads `PICKLE_REPORT` env var.
     public static var reportEnabled: Bool {
-        ProcessInfo.processInfo.environment["PICKLE_REPORT"] != nil
+        reportEnabled(in: ProcessInfo.processInfo.environment)
+    }
+
+    /// The env→flag decision as a pure function (config passed in, not read
+    /// from the process). Testable without mutating the real environment.
+    package static func reportEnabled(in environment: [String: String]) -> Bool {
+        environment["PICKLE_REPORT"] != nil
+    }
+
+    /// Chooses the collector for a run: an explicit collector always wins;
+    /// otherwise the shared collector when reporting is enabled, else none.
+    /// Pure — `reportEnabled` is passed in, not read from the environment — so
+    /// the routing is testable in isolation, without touching process globals.
+    package static func effectiveReportCollector(explicit: ReportResultCollector?,
+                                                 reportEnabled: Bool) -> ReportResultCollector? {
+        if let explicit { return explicit }
+        return reportEnabled ? _resultCollector : nil
     }
 
     /// Output path for the HTML report. Reads `PICKLE_REPORT_PATH` env var.
@@ -182,14 +198,11 @@ public struct GherkinTestScenario: Sendable, CustomStringConvertible {
             feature: feature
         )
 
-        let effectiveCollector: ReportResultCollector?
-        if let collector = reportCollector {
-            effectiveCollector = collector
-        } else if Self.reportEnabled {
+        let effectiveCollector = Self.effectiveReportCollector(
+            explicit: reportCollector, reportEnabled: Self.reportEnabled)
+        // The shared collector's report is written on process exit.
+        if effectiveCollector === Self._resultCollector {
             Self.ensureAtexitRegistered()
-            effectiveCollector = Self._resultCollector
-        } else {
-            effectiveCollector = nil
         }
 
         if let collector = effectiveCollector {

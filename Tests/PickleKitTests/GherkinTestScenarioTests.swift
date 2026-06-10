@@ -300,18 +300,41 @@ struct GherkinTestScenarioTests {
         }
     }
 
-    // MARK: - Automatic Report Collection (PICKLE_REPORT)
+    // MARK: - Report collection routing (PICKLE_REPORT)
+    //
+    // These exercise the env→flag mapping and the collector-routing DECISION as
+    // pure functions with the config passed in — no process-global env mutation
+    // and no assertions on the shared collector's contents. So they're safe
+    // under parallel execution AND under an externally-set PICKLE_REPORT (e.g.
+    // CI's report-generating run, where the env var is set for the whole
+    // process and every bridge run auto-collects into the shared collector).
 
-    @Test func autoCollectsWhenPickleReportSet() async throws {
-        GherkinTestScenario.resultCollector.reset()
-        unsetenv("PICKLE_REPORT")
-        defer {
-            unsetenv("PICKLE_REPORT")
-            GherkinTestScenario.resultCollector.reset()
-        }
+    @Test func reportEnabledReflectsTheEnvironment() {
+        #expect(!GherkinTestScenario.reportEnabled(in: [:]))
+        #expect(!GherkinTestScenario.reportEnabled(in: ["SOMETHING_ELSE": "1"]))
+        #expect(GherkinTestScenario.reportEnabled(in: ["PICKLE_REPORT": "1"]))
+        // Presence, not value — an empty value still enables it.
+        #expect(GherkinTestScenario.reportEnabled(in: ["PICKLE_REPORT": ""]))
+    }
 
-        setenv("PICKLE_REPORT", "1", 1)
+    @Test func enabledRunWithoutExplicitCollectorRoutesToTheSharedCollector() {
+        #expect(GherkinTestScenario.effectiveReportCollector(explicit: nil, reportEnabled: true)
+            === GherkinTestScenario.resultCollector)
+    }
 
+    @Test func disabledRunWithoutExplicitCollectorRoutesNowhere() {
+        #expect(GherkinTestScenario.effectiveReportCollector(explicit: nil, reportEnabled: false) == nil)
+    }
+
+    @Test func explicitCollectorTakesPrecedence() {
+        let explicit = ReportResultCollector()
+        // Wins whether or not reporting is enabled, and is never the shared one.
+        #expect(GherkinTestScenario.effectiveReportCollector(explicit: explicit, reportEnabled: true) === explicit)
+        #expect(GherkinTestScenario.effectiveReportCollector(explicit: explicit, reportEnabled: false) === explicit)
+        #expect(explicit !== GherkinTestScenario.resultCollector)
+    }
+
+    @Test func runWithAnExplicitCollectorRecordsIntoIt() async throws {
         let scenarios = try loadScenarios(
             bundle: Bundle.module,
             subdirectory: "Fixtures",
@@ -319,73 +342,14 @@ struct GherkinTestScenarioTests {
         )
         let test = try #require(scenarios.first)
 
-        // Run without explicit collector — should auto-collect
-        try await test.run(stepDefinitions: [TaggedSteps.self])
+        // An explicit (local) collector — no env, no shared global, so this is
+        // robust under parallelism and a globally-set PICKLE_REPORT.
+        let collector = ReportResultCollector()
+        try await test.run(stepDefinitions: [TaggedSteps.self], reportCollector: collector)
 
-        let testRun = GherkinTestScenario.resultCollector.buildTestRunResult()
-        #expect(testRun.featureResults.count == 1)
-        #expect(testRun.featureResults[0].scenarioResults.count == 1)
-        #expect(testRun.featureResults[0].scenarioResults[0].scenarioName == "Quick check")
-    }
-
-    @Test func noAutoCollectWhenPickleReportUnset() async throws {
-        GherkinTestScenario.resultCollector.reset()
-        unsetenv("PICKLE_REPORT")
-        defer {
-            unsetenv("PICKLE_REPORT")
-            GherkinTestScenario.resultCollector.reset()
-        }
-
-        let scenarios = try loadScenarios(
-            bundle: Bundle.module,
-            subdirectory: "Fixtures",
-            tagFilter: TagFilter(includeTags: ["fast"])
-        )
-        let test = try #require(scenarios.first)
-
-        // Run without PICKLE_REPORT — shared collector should remain empty
-        try await test.run(stepDefinitions: [TaggedSteps.self])
-
-        let testRun = GherkinTestScenario.resultCollector.buildTestRunResult()
-        #expect(testRun.featureResults.isEmpty)
-    }
-
-    @Test func explicitCollectorTakesPrecedenceOverAutoReport() async throws {
-        GherkinTestScenario.resultCollector.reset()
-        unsetenv("PICKLE_REPORT")
-        defer {
-            unsetenv("PICKLE_REPORT")
-            GherkinTestScenario.resultCollector.reset()
-        }
-
-        setenv("PICKLE_REPORT", "1", 1)
-
-        let scenarios = try loadScenarios(
-            bundle: Bundle.module,
-            subdirectory: "Fixtures",
-            tagFilter: TagFilter(includeTags: ["fast"])
-        )
-        let test = try #require(scenarios.first)
-
-        // Run with explicit collector — shared collector should NOT receive the result
-        let explicitCollector = ReportResultCollector()
-        try await test.run(stepDefinitions: [TaggedSteps.self], reportCollector: explicitCollector)
-
-        let explicitRun = explicitCollector.buildTestRunResult()
-        #expect(explicitRun.featureResults.count == 1)
-
-        let sharedRun = GherkinTestScenario.resultCollector.buildTestRunResult()
-        #expect(sharedRun.featureResults.isEmpty)
-    }
-
-    @Test func reportEnabledReadsEnvironment() {
-        unsetenv("PICKLE_REPORT")
-        defer { unsetenv("PICKLE_REPORT") }
-
-        #expect(!GherkinTestScenario.reportEnabled)
-
-        setenv("PICKLE_REPORT", "1", 1)
-        #expect(GherkinTestScenario.reportEnabled)
+        let run = collector.buildTestRunResult()
+        #expect(run.featureResults.count == 1)
+        #expect(run.featureResults.first?.scenarioResults.first?.scenarioName == "Quick check")
     }
 
     @Test func reportOutputPathReadsEnvironment() {
