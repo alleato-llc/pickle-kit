@@ -194,7 +194,7 @@ To match your own design system, copy its colour tokens into a new theme — see
 
 The [`Example/TodoApp`](Example/TodoApp) directory contains a complete macOS SwiftUI todo app that demonstrates PickleKit with XCUITest.
 
-![Xcode test navigator showing XCUITest results for the TodoApp](docs/todo-test-run.png)
+![HTML test report generated from the TodoApp UI tests](docs/todo-test-run.png)
 
 It includes:
 
