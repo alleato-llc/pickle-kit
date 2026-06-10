@@ -52,25 +52,40 @@ jobs:
             swift test --filter GherkinIntegrationTests
           test -s _site/report.html && test -s _site/index.html
 
+      - name: Pin theme variants
+        run: |
+          # The showcase links want DISTINCT pages, not one report.html that
+          # relies on a ?theme= query surviving the click. So emit a standalone
+          # copy per palette where the theme is hard-pinned: replace the
+          # pre-paint's `forced` lookup with a literal, so it ignores the query,
+          # localStorage, and the OS preference. The grep guards the rewrite —
+          # if the pre-paint line ever changes, this step fails loudly rather
+          # than silently shipping unpinned copies.
+          for t in dark nord gruvbox; do
+            sed "s|var forced = new URLSearchParams(location.search).get('theme');|var forced = '$t';|" \
+              _site/report.html > "_site/report-$t.html"
+            grep -q "var forced = '$t';" "_site/report-$t.html"
+          done
+
       - name: Screenshot
         run: |
           python3 -m pip install --quiet --break-system-packages pillow \
             || python3 -m pip install --quiet pillow
           CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
           mkdir -p /tmp/shots _site/screenshots
-          # The living spec, plus the report in three of its built-in palettes
-          # (?theme=<id>, honored by the pre-paint script) so the README can
-          # show the same report re-skinned — the themeability, made visible.
+          # The living spec, plus the report in each built-in palette — one
+          # standalone theme-pinned page apiece, so the README's showcase links
+          # land on genuinely different reports.
           shoot() {
             "$CHROME" --headless=new --disable-gpu --hide-scrollbars \
               --force-device-scale-factor=2 --window-size=1100,3200 \
-              --screenshot="/tmp/shots/$1.png" "file://$PWD/_site/$2"
+              --screenshot="/tmp/shots/$1.png" "file://$PWD/_site/$1.html"
           }
-          shoot index         "index.html"
-          shoot report         "report.html"
-          shoot report-dark    "report.html?theme=dark"
-          shoot report-nord    "report.html?theme=nord"
-          shoot report-gruvbox "report.html?theme=gruvbox"
+          shoot index
+          shoot report
+          shoot report-dark
+          shoot report-nord
+          shoot report-gruvbox
           python3 .github/scripts/trim.py /tmp/shots _site/screenshots
 
       - uses: actions/upload-pages-artifact@v3
