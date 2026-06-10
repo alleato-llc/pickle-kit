@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-PickleKit is a standalone Swift Cucumber/BDD testing framework. It provides a Gherkin parser, step registry, scenario runner, and bridges for both Swift Testing and XCTest with zero external dependencies. Requires Swift 6.2+ (swift-tools-version 6.2).
+PickleKit is a standalone Swift Cucumber/BDD testing framework. It provides a Gherkin parser, step registry, scenario runner, and bridges for both Swift Testing and XCTest. Its **one dependency** is [Kumi](https://github.com/alleato-llc/kumi), a tiny dependency-free HTML builder used to assemble the report/spec markup. Requires Swift 6.2+ (swift-tools-version 6.2).
 
 ## Architecture
 
@@ -18,7 +18,10 @@ Sources/PickleKit/
 ├── Report/
 │   ├── StepResult.swift          # StepStatus enum + StepResult per-step execution data
 │   ├── TestRunResult.swift       # Aggregated test run results with computed counts
-│   ├── HTMLReportGenerator.swift # Self-contained HTML report with inline CSS/JS
+│   ├── HTMLReportGenerator.swift # Self-contained HTML report (built with Kumi)
+│   ├── SpecPageGenerator.swift   # The living-specification page (Given/When/Then prose)
+│   ├── ReportSuite.swift         # Renders/writes the report + spec pair, cross-linked
+│   ├── ReportShared.swift        # Shared chrome: palette, rail, summary, outline grouping
 │   └── ReportResultCollector.swift # Thread-safe result accumulator (OSAllocatedUnfairLock)
 ├── Runner/
 │   ├── StepRegistry.swift        # Regex pattern → async closure mapping
@@ -34,7 +37,8 @@ Sources/PickleKit/
 
 ### Key Design Decisions
 
-- **Zero dependencies** — only Foundation, Testing (Swift Testing), and XCTest (implicit for test targets)
+- **One dependency** — Foundation, Testing (Swift Testing), and XCTest (implicit for test targets), plus [Kumi](https://github.com/alleato-llc/kumi), a tiny HTML builder. The report/spec generators assemble markup as a Kumi node tree (auto-escaped, auto-closed) rather than concatenated strings. Because the XCTest bridge lives in the same module, the generators can't be used from a plain executable (it'd fail to load `libXCTestSwiftSupport`) — generate reports via `swift test` + `PICKLE_REPORT`, which is the supported path.
+- **Scenario Outline grouping in reports** — `OutlineExpander` tags each expanded `Scenario` with `outlineName`/`exampleLabel`, threaded into `ScenarioResult`. The report/spec fold consecutive same-outline cases under one collapsible header (name + `outline · N`), via `ReportShared.segments(_:)`. Collapsed by default; a group with a failure opens; per-scenario anchors are preserved. `.github/workflows/pages.yml` generates the report+spec from these dogfooded scenarios on every push, screenshots them, and deploys to GitHub Pages ([alleato-llc.github.io/pickle-kit](https://alleato-llc.github.io/pickle-kit/)); the README's report screenshot is produced there, never committed.
 - **All AST types are `Sendable` and `Equatable`** — value types throughout
 - **`StepRegistry` is instance-based** (not singleton) for testability
 - **`StepHandler` is `@MainActor @Sendable (StepMatch) async throws -> Void`** — async/await compatible, isolated to `@MainActor` so handlers safely use XCTest assertions and UI frameworks

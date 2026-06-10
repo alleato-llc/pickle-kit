@@ -7,6 +7,7 @@ PickleKit generates Cucumber-style HTML reports with per-step results, timing, a
 The report is a single self-contained HTML file (inline CSS + JS, no external assets) with:
 
 - **Collapsible features** — each feature is a `<details>` (open by default); click its header to fold the whole block. Scenarios collapse independently (failed ones open automatically).
+- **Scenario Outline grouping** — the examples expanded from one `Scenario Outline` collapse under a single header (the outline's name + an `outline · N` count badge), so a run of cases reads as one family instead of N look-alike rows. Groups are collapsed by default; a group containing a failing example opens automatically. The individual cases keep their own anchors, so deep links still resolve.
 - **Outline rail** — a persistent sticky left rail lists every feature with a status dot and scroll-spy (the current feature highlights as you scroll); clicking jumps to it. The same rail component appears on the living-spec page, so the two read as one product.
 - **Status filtering** — the All / Passed / Skipped / Failed buttons, plus Expand All / Collapse All.
 
@@ -21,6 +22,12 @@ The report is themeable and ships **light** and **dark** themes out of the box, 
 - **How it's switched:** a `data-theme` attribute (`"light"` / `"dark"`) on `<html>` selects a block of CSS custom properties. The **◐** button in the report header toggles it.
 - **First paint:** an inline `<script>` in `<head>` runs before render — it reads a remembered choice from `localStorage` (`pickle-theme`), falling back to the OS preference via `prefers-color-scheme`. So there's no flash, and a returning viewer keeps their choice.
 - **The palette** lives in `HTMLReportGenerator.generateCSS()` as two `:root[data-theme=…]` blocks of variables (`--bg`, `--surface`, `--text`, `--muted`, `--faint`, `--accent`, `--error`, `--border`, `--shadow`, and status colours `--passed`/`--failed`/`--skipped`/`--undefined`). **To re-skin the report, change those variables** — everything else (cards, badges, progress bars, the sidebar) is expressed in terms of them. To match a different design system, copy that system's color tokens into the two blocks.
+
+> The report and spec HTML is assembled with [Kumi](https://github.com/alleato-llc/kumi), a small dependency-free HTML builder — so the markup is auto-escaped and the structure is built as a node tree rather than concatenated strings. Kumi is PickleKit's one dependency.
+
+## Hosted demo
+
+A live report + living spec, regenerated on every push, is published to GitHub Pages: **[alleato-llc.github.io/pickle-kit](https://alleato-llc.github.io/pickle-kit/)** (the spec is the front door; the report is one click away). It's PickleKit's own dogfooded scenarios, so it shows real passing, failing, skipped, tagged, and grouped-outline cases.
 
 ## Configuration
 

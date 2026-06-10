@@ -176,13 +176,13 @@ Generate Cucumber-style HTML reports with per-step results, timing, and status f
 PICKLE_REPORT=1 swift test
 ```
 
-The report includes summary counts, collapsible per-feature sections with collapsible scenarios, per-step timing and error details, interactive filtering controls, and a collapsible outline sidebar for navigation. It's a single self-contained HTML file and is **themeable** — light/dark out of the box, following the system preference and remembering your choice. See [Report Configuration](docs/REPORTING.md#theming) for how to re-skin it.
+The report includes summary counts, collapsible per-feature sections, **Scenario Outline grouping** (an outline's examples fold under one header), per-step timing and error details, interactive filtering, and a sticky outline sidebar. It's a single self-contained HTML file and is **themeable** — light/dark out of the box, following the system preference and remembering your choice.
 
-![HTML test report showing a completed test run](docs/xcui-test-report.png)
+**[See a live report + living spec ↗](https://alleato-llc.github.io/pickle-kit/)** — regenerated on every push from PickleKit's own dogfooded scenarios (real passing, failing, skipped, tagged, and grouped-outline cases).
 
-![HTML test report with filtered scenarios](docs/example-filtered-scenarios.png)
+[![PickleKit HTML test report](https://alleato-llc.github.io/pickle-kit/screenshots/report.png)](https://alleato-llc.github.io/pickle-kit/report.html)
 
-See [Report Configuration](docs/REPORTING.md) for customization, xcodebuild integration, and programmatic generation.
+See [Report Configuration](docs/REPORTING.md) for customization, theming, xcodebuild integration, and programmatic generation.
 
 ## Example: TodoApp with XCUITest
 

@@ -1,0 +1,66 @@
+name: Report → GitHub Pages
+
+# On every push to main: generate the living spec + report from PickleKit's own
+# dogfooded scenarios (swift test + PICKLE_REPORT), screenshot both, and publish
+# them to GitHub Pages as a live demo. The screenshots the README links to are
+# produced here — never committed — so they always match the current report.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Generate spec + report
+        run: |
+          mkdir -p _site
+          PICKLE_REPORT=1 \
+            PICKLE_REPORT_PATH="$PWD/_site/report.html" \
+            PICKLE_SPEC_PATH="$PWD/_site/index.html" \
+            PICKLE_SPEC_TITLE="PickleKit — Living Specification" \
+            swift test
+
+      - name: Screenshot
+        run: |
+          python3 -m pip install --quiet --break-system-packages pillow \
+            || python3 -m pip install --quiet pillow
+          CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+          mkdir -p /tmp/shots _site/screenshots
+          for page in index report; do
+            "$CHROME" --headless=new --disable-gpu --hide-scrollbars \
+              --force-device-scale-factor=2 --window-size=1100,3200 \
+              --screenshot="/tmp/shots/$page.png" "file://$PWD/_site/$page.html"
+          done
+          python3 .github/scripts/trim.py /tmp/shots _site/screenshots
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
